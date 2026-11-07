@@ -8,6 +8,8 @@
     en: {
       "lang.switch": "عربي",
       "lang.switchAria": "التبديل إلى العربية",
+      "theme.dark": "Switch to dark mode",
+      "theme.light": "Switch to light mode",
       "skip": "Skip to content",
       "menu.open": "Open menu",
       "menu.close": "Close menu",
@@ -252,6 +254,8 @@
     ar: {
       "lang.switch": "English",
       "lang.switchAria": "Switch to English",
+      "theme.dark": "تفعيل الوضع الداكن",
+      "theme.light": "تفعيل الوضع الفاتح",
       "skip": "تخطَّ إلى المحتوى",
       "menu.open": "فتح القائمة",
       "menu.close": "إغلاق القائمة",
