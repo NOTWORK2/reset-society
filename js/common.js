@@ -84,7 +84,42 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
   }
 
-  window.RS = { ICONS, waLink, esc, hydrate, toast };
+  /* Service photos uploaded from the admin are stored in Firestore as "media:<id>".
+     imgAttrs() writes a placeholder for them and fillMedia() swaps in the real image. */
+  const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  const mediaCache = {};
+  function imgAttrs(src) {
+    src = String(src || "");
+    return src.startsWith("media:")
+      ? `src="${mediaCache[src.slice(6)] || BLANK}" data-media="${esc(src.slice(6))}"`
+      : `src="${esc(src)}"`;
+  }
+  async function fillMedia(root) {
+    root = root || document;
+    const pending = () => [...root.querySelectorAll("img[data-media]")];
+    const apply = () => pending().forEach((img) => {
+      const url = mediaCache[img.dataset.media];
+      if (url) { img.src = url; img.removeAttribute("data-media"); }
+    });
+    pending().forEach((img) => {
+      const id = img.dataset.media;
+      if (!mediaCache[id]) { try { const s = sessionStorage.getItem("rs-media-" + id); if (s) mediaCache[id] = s; } catch (e) { /* ignore */ } }
+    });
+    apply();
+    const ids = [...new Set(pending().map((img) => img.dataset.media))];
+    if (!ids.length) return;
+    const db = await window.RS_DB;
+    if (!db) return;
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const url = await db.getMedia(id);
+        if (url) { mediaCache[id] = url; try { sessionStorage.setItem("rs-media-" + id, url); } catch (e) { /* full */ } }
+      } catch (e) { /* missing photo */ }
+    }));
+    apply();
+  }
+
+  window.RS = { ICONS, waLink, esc, hydrate, toast, imgAttrs, fillMedia, mediaCache };
 
   document.addEventListener("DOMContentLoaded", () => {
     hydrate(document);

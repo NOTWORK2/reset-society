@@ -157,27 +157,42 @@
   <a class="wa-float" data-wa data-i18n-aria="wa.chat"><span data-icon="whatsapp" style="display:contents"></span></a>
 
   <script src="js/config.js"></script>
+  <script src="js/firebase-config.js"></script>
   <script src="js/common.js"></script>
   <script>
     (function () {
       const C = window.RS_CONFIG;
       const L = window.RS_I18N;
-      const grid = document.getElementById("servicesGrid");
-      grid.innerHTML = C.services.map((s) => `
-        <article class="service-card reveal">
-          <div class="media"><img src="${RS.esc(s.image)}" alt="${RS.esc(L.field(s, "name"))}" loading="lazy" /></div>
-          <div class="body">
-            ${s.featured ? `<span class="tag caps">${L.t("services.best")}</span>` : ""}
-            <h3>${RS.esc(L.field(s, "name"))}</h3>
-            <div class="meta"><span>${L.money(s.price)}</span><span class="sep"></span><span>${RS.esc(L.field(s, "duration"))}</span></div>
-            <p>${RS.esc(L.field(s, "long"))}</p>
-            <a class="link-arrow" href="book.html?service=${encodeURIComponent(s.id)}" aria-label="${RS.esc(L.t("services.bookAria", { name: L.field(s, "name") }))}">${L.t("services.bookNow")} <span data-icon="arrow" style="display:contents"></span></a>
-          </div>
-        </article>`).join("");
+      let rendered = false;
 
-      document.getElementById("hours").innerHTML = C.hours
-        .map((h) => `<div class="hours-row"><span>${RS.esc(L.field(h, "days"))}</span><span>${RS.esc(L.field(h, "time"))}</span></div>`).join("");
-      document.getElementById("mapFrame").src = "https://www.google.com/maps?q=" + encodeURIComponent(C.mapsQuery) + "&hl=" + L.lang + "&output=embed";
+      function render() {
+        const grid = document.getElementById("servicesGrid");
+        const reveal = rendered ? "reveal in" : "reveal";
+        grid.innerHTML = C.services.filter((s) => s.active !== false).map((s) => `
+          <article class="service-card ${reveal}">
+            <div class="media"><img ${RS.imgAttrs(s.image)} alt="${RS.esc(L.field(s, "name"))}" loading="lazy" /></div>
+            <div class="body">
+              ${s.featured ? `<span class="tag caps">${L.t("services.best")}</span>` : ""}
+              <h3>${RS.esc(L.field(s, "name"))}</h3>
+              <div class="meta"><span>${L.money(s.price)}</span><span class="sep"></span><span>${RS.esc(L.field(s, "duration"))}</span></div>
+              <p>${RS.esc(L.field(s, "long") || L.field(s, "short") || "")}</p>
+              <a class="link-arrow" href="book.html?service=${encodeURIComponent(s.id)}" aria-label="${RS.esc(L.t("services.bookAria", { name: L.field(s, "name") }))}">${L.t("services.bookNow")} <span data-icon="arrow" style="display:contents"></span></a>
+            </div>
+          </article>`).join("");
+
+        document.getElementById("hours").innerHTML = (C.hours || [])
+          .map((h) => `<div class="hours-row"><span>${RS.esc(L.field(h, "days"))}</span><span>${RS.esc(L.field(h, "time"))}</span></div>`).join("");
+        const map = document.getElementById("mapFrame");
+        const mapSrc = "https://www.google.com/maps?q=" + encodeURIComponent(C.mapsQuery) + "&hl=" + L.lang + "&output=embed";
+        if (map.src !== mapSrc) map.src = mapSrc;
+        if (rendered) RS.hydrate(document);
+        RS.fillMedia(grid);
+        rendered = true;
+      }
+
+      render();
+      // Online settings (prices, services, hours) may be newer than what was shown first.
+      window.RS_SITE.then((site) => { if (site) render(); });
     })();
   </script>
 </body>

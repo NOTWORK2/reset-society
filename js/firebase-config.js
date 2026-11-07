@@ -26,3 +26,18 @@ window.RS_FIREBASE = {
   document.head.appendChild(s);
   setTimeout(() => resolve(null), 12000); // never leave the page waiting forever
 })();
+
+/* window.RS_SITE resolves once the online settings (prices, services, hours…) are applied:
+   to the settings object, null when none are saved yet, or undefined if they could not load. */
+window.RS_SITE = window.RS_DB
+  .then((db) => (db ? Promise.race([db.loadSite(), new Promise((r) => setTimeout(() => r(undefined), 6000))]) : undefined))
+  .then((site) => {
+    if (site) {
+      window.RS_applySite(site);
+      try { localStorage.setItem("rs-site", JSON.stringify(site)); } catch (e) { /* ignore */ }
+    } else if (site === null) {
+      try { localStorage.removeItem("rs-site"); } catch (e) { /* ignore */ }
+    }
+    return site;
+  })
+  .catch(() => undefined);

@@ -5,12 +5,14 @@
  *   slotLocks/{date_time_service_n}  one per taken place in a slot; public, no personal data.
  *                         Creating it together with the booking is what stops double-booking.
  *   settings/public       { closedDates: ["2026-12-02", ...] }
+ *   settings/site         prices, services, hours, contact, booking times, policy (edited in the admin)
+ *   media/{id}            service photos uploaded from the admin, stored as small JPEG data URLs
  *   admins/{uid}          exists = that signed-in user is an admin (create it in the console)
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
-  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove
+  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator, signInAnonymously, signInWithEmailAndPassword, signOut,
@@ -152,12 +154,56 @@ async function unblockSlot(time, existingLocks) {
   await batch.commit();
 }
 
+/* ---------- editable site settings ---------- */
+
+function cleanSite(data) {
+  if (!data) return null;
+  const { updatedAt, capacity, ...rest } = data;
+  return rest;
+}
+
+async function loadSite() {
+  const snap = await getDoc(doc(db, "settings", "site"));
+  return snap.exists() ? cleanSite(snap.data()) : null;
+}
+
+function watchSite(cb) {
+  return onSnapshot(doc(db, "settings", "site"), (s) => cb(s.exists() ? cleanSite(s.data()) : null));
+}
+
+/* The capacity map is what the security rules read to know which services can be booked
+   and how many guests fit in one time slot. Hidden services get 0, so they can't be booked. */
+async function saveSite(site) {
+  const capacityMap = {};
+  site.services.forEach((s) => { capacityMap[s.id] = s.active === false ? 0 : Math.max(1, Math.round(Number(s.capacity) || 1)); });
+  await setDoc(doc(db, "settings", "site"), { ...site, capacity: capacityMap, updatedAt: serverTimestamp() });
+}
+
+const mediaMemo = {};
+async function getMedia(id) {
+  if (mediaMemo[id]) return mediaMemo[id];
+  const snap = await getDoc(doc(db, "media", id));
+  return (mediaMemo[id] = snap.exists() ? snap.data().data : null);
+}
+
+async function uploadMedia(dataUrl) {
+  const ref = await addDoc(collection(db, "media"), { data: dataUrl, createdAt: serverTimestamp() });
+  mediaMemo[ref.id] = dataUrl;
+  return ref.id;
+}
+
+async function deleteMedia(id) {
+  await deleteDoc(doc(db, "media", id));
+}
+
 window.__rsDbResolve({
   mode: "firebase",
   slotKey,
   capacity,
   loadAvailability,
   createBooking,
+  loadSite,
+  getMedia,
   // admin
   auth,
   onAuth: (cb) => onAuthStateChanged(auth, cb),
@@ -171,5 +217,9 @@ window.__rsDbResolve({
   watchSettings,
   setDayClosed,
   blockSlot,
-  unblockSlot
+  unblockSlot,
+  watchSite,
+  saveSite,
+  uploadMedia,
+  deleteMedia
 });

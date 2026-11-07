@@ -27,7 +27,8 @@
   function save() {
     try { sessionStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable: state lives in memory */ }
   }
-  const service = () => C.services.find((s) => s.id === state.serviceId);
+  const activeServices = () => C.services.filter((s) => s.active !== false);
+  const service = () => activeServices().find((s) => s.id === state.serviceId);
 
   /* ---------- Firebase availability ---------- */
   let DB = null, dbState = "pending"; // pending → on (Firebase) | off (WhatsApp only)
@@ -125,10 +126,11 @@
   /* ---------- rendering ---------- */
   function renderServices() {
     const list = $("serviceList");
-    list.insertAdjacentHTML("beforeend", C.services.map((s) => `
+    list.querySelectorAll("input, label").forEach((el) => el.remove());
+    list.insertAdjacentHTML("beforeend", activeServices().map((s) => `
       <input class="sr-only" type="radio" name="service" id="svc-${esc(s.id)}" value="${esc(s.id)}" ${state.serviceId === s.id ? "checked" : ""} />
       <label class="service-opt" for="svc-${esc(s.id)}">
-        <img src="${esc(s.image)}" alt="" />
+        <img ${RS.imgAttrs(s.image)} alt="" />
         <div>
           <h3>${esc(nm(s))}</h3>
           <div class="meta"><span>${L.money(s.price)}</span><span class="sep"></span><span>${esc(L.field(s, "duration"))}</span></div>
@@ -136,11 +138,13 @@
         </div>
         <span class="radio">${ICONS.check}</span>
       </label>`).join(""));
-    list.addEventListener("change", (e) => {
-      if (e.target.name !== "service") return;
-      if (state.serviceId !== e.target.value) { state.serviceId = e.target.value; }
-      save(); renderBindings();
-    });
+    RS.fillMedia(list);
+  }
+
+  function renderPolicy() {
+    const lines = C.policy && C.policy[L.lang];
+    if (!lines || !lines.length) return; // keep the default text from js/i18n.js
+    $("policyList").innerHTML = lines.map((l) => `<li>${esc(l)}</li>`).join("");
   }
 
   let view = null; // {y, m} month shown in the calendar
@@ -184,7 +188,7 @@
     if (!s) return `<p class="side-empty">${tr("side.empty")}</p>`;
     const row = (icon, label, value) => `<div class="summary-row">${ICONS[icon]}<span>${label}</span><span class="v">${value}</span></div>`;
     let html = `<div class="summary-top">
-        <img src="${esc(s.image)}" alt="" />
+        <img ${RS.imgAttrs(s.image)} alt="" />
         <div><h3>${esc(nm(s))}</h3><small>${tr("sum.single")}</small></div>
         <span class="price">${kind === "full" ? "" : L.money(s.price)}</span>
       </div>`;
@@ -212,6 +216,7 @@
     document.querySelectorAll('[data-summary="full"]').forEach((el) => { el.innerHTML = summaryHTML("full"); });
     if (state.ref && s) $("waBtn").href = waLink(state.mode === "firebase" ? manageMessage() : bookingMessage());
     renderSide();
+    RS.fillMedia(document);
   }
 
   function resetBooking() {
@@ -412,6 +417,11 @@
 
   /* ---------- events ---------- */
   function bind() {
+    $("serviceList").addEventListener("change", (e) => {
+      if (e.target.name !== "service") return;
+      state.serviceId = e.target.value;
+      save(); renderBindings();
+    });
     document.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", next));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => {
       const i = STEPS.indexOf(current());
@@ -470,13 +480,23 @@
 
     // Coming from a "Book Cold Plunge" link: preselect it and go straight to date & time.
     const pre = new URLSearchParams(location.search).get("service");
-    if (pre && C.services.some((s) => s.id === pre) && !location.hash) {
+    if (pre && activeServices().some((s) => s.id === pre) && !location.hash) {
       if (state.serviceId !== pre) { state.serviceId = pre; state.date = null; state.time = null; }
       save();
       history.replaceState(null, "", "book.html#datetime");
     }
     renderServices();
+    renderPolicy();
     bind();
     show(current());
+
+    // Prices and services edited in the admin may be newer than the copy shown first.
+    const before = JSON.stringify([C.services, C.booking]);
+    window.RS_SITE.then((site) => {
+      if (!site || JSON.stringify([C.services, C.booking]) === before) return;
+      renderServices();
+      renderPolicy();
+      if (current() !== "confirmed") show(current()); else renderBindings();
+    });
   });
 })();

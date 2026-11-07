@@ -72,6 +72,7 @@
         <div class="tabs" role="tablist">
           <button class="tab active" role="tab" aria-selected="true" data-tab="bookings" data-i18n="admin.tabBookings">Bookings</button>
           <button class="tab" role="tab" aria-selected="false" data-tab="schedule" data-i18n="admin.tabSchedule">Schedule</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="settings" data-i18n="admin.tabSettings">Settings</button>
         </div>
 
         <!-- Bookings tab -->
@@ -100,9 +101,139 @@
           <p class="muted small" data-i18n="admin.schHelp">Block a time to stop online bookings for it (e.g. maintenance or private sessions).</p>
           <div class="schedule" id="schedule"></div>
         </div>
+
+        <!-- Settings tab -->
+        <div class="tab-panel" id="tab-settings" hidden>
+          <p class="set-note" id="siteNote"></p>
+
+          <section class="set-card">
+            <div class="set-head">
+              <h2 data-i18n="set.services">Services &amp; prices</h2>
+              <button class="btn btn-primary btn-sm" type="button" id="addServiceBtn" data-i18n="set.addService">+ Add service</button>
+            </div>
+            <div id="serviceAdminList"></div>
+          </section>
+
+          <section class="set-card">
+            <h2 data-i18n="set.contact">Contact &amp; location</h2>
+            <form id="contactForm" novalidate>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="stWhatsapp" data-i18n="set.whatsapp">WhatsApp number</label>
+                  <input class="input" id="stWhatsapp" inputmode="numeric" dir="ltr" placeholder="971501234567" />
+                </div>
+                <div class="field">
+                  <label for="stPhone" data-i18n="set.phoneDisplay">Phone as shown on the site</label>
+                  <input class="input" id="stPhone" dir="ltr" placeholder="+971 50 123 4567" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="stInstagram" data-i18n="set.instagram">Instagram link</label>
+                <input class="input" id="stInstagram" type="url" dir="ltr" placeholder="https://www.instagram.com/..." />
+              </div>
+              <div class="field">
+                <label for="stMaps" data-i18n="set.maps">Address or Google Maps place name</label>
+                <input class="input" id="stMaps" />
+              </div>
+              <p class="form-error" id="contactError" role="alert"></p>
+              <button class="btn btn-primary btn-sm" type="submit" data-i18n="set.save">Save</button>
+            </form>
+          </section>
+
+          <section class="set-card">
+            <h2 data-i18n="set.hours">Opening hours</h2>
+            <div id="hoursRows"></div>
+            <div class="set-actions">
+              <button class="btn btn-outline btn-sm" type="button" id="addHoursRow" data-i18n="set.addRow">+ Add row</button>
+              <button class="btn btn-primary btn-sm" type="button" id="saveHours" data-i18n="set.save">Save</button>
+            </div>
+          </section>
+
+          <section class="set-card">
+            <h2 data-i18n="set.booking">Booking times</h2>
+            <label class="set-label" data-i18n="set.slots">Session start times</label>
+            <div class="slot-chips" id="slotChips"></div>
+            <div class="add-time">
+              <input class="input" type="time" id="newSlot" step="900" dir="ltr" />
+              <button class="btn btn-outline btn-sm" type="button" id="addSlotBtn" data-i18n="set.addTime">Add</button>
+            </div>
+            <label class="set-label" data-i18n="set.closedWeekdays">Closed every week on</label>
+            <div class="weekday-checks" id="weekdayChecks"></div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="stDaysAhead" data-i18n="set.daysAhead">How many days ahead customers can book</label>
+                <input class="input" id="stDaysAhead" type="number" min="1" max="365" />
+              </div>
+              <div class="field">
+                <label for="stLead" data-i18n="set.lead">Minimum notice for same-day bookings (minutes)</label>
+                <input class="input" id="stLead" type="number" min="0" max="1440" step="15" />
+              </div>
+            </div>
+            <p class="form-error" id="bookingSetError" role="alert"></p>
+            <button class="btn btn-primary btn-sm" type="button" id="saveBookingSet" data-i18n="set.save">Save</button>
+          </section>
+
+          <section class="set-card">
+            <h2 data-i18n="set.policy">Booking &amp; cancellation policy</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label for="stPolicyEn" data-i18n="set.policyEn">English (one rule per line)</label>
+                <textarea class="input" id="stPolicyEn" rows="6" dir="ltr"></textarea>
+              </div>
+              <div class="field">
+                <label for="stPolicyAr" data-i18n="set.policyAr">Arabic (one rule per line)</label>
+                <textarea class="input" id="stPolicyAr" rows="6" dir="rtl"></textarea>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" id="savePolicy" data-i18n="set.save">Save</button>
+          </section>
+        </div>
       </div>
     </section>
   </main>
+
+  <!-- Add / edit a service -->
+  <dialog class="policy svc-dialog" id="svcDialog" aria-labelledby="svcTitle">
+    <form class="policy-inner" id="svcForm" novalidate>
+      <h2 id="svcTitle"></h2>
+      <div class="photo-pick">
+        <img id="svcPreview" alt="" />
+        <div>
+          <label class="btn btn-outline btn-sm" for="svcPhoto" data-i18n="set.changePhoto">Choose photo</label>
+          <input type="file" id="svcPhoto" accept="image/*" class="sr-only" />
+          <p class="muted small" data-i18n="set.photoHint">JPG or PNG. It's resized automatically.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="svNameEn" data-i18n="set.nameEn">Name (English)</label><input class="input" id="svNameEn" maxlength="60" dir="ltr" /></div>
+        <div class="field"><label for="svNameAr" data-i18n="set.nameAr">Name (Arabic)</label><input class="input" id="svNameAr" maxlength="60" dir="rtl" /></div>
+      </div>
+      <div class="grid-3">
+        <div class="field"><label for="svPrice" data-i18n="set.price">Price (AED)</label><input class="input" id="svPrice" type="number" min="0" step="1" /></div>
+        <div class="field"><label for="svMinutes" data-i18n="set.minutes">Length (minutes)</label><input class="input" id="svMinutes" type="number" min="5" max="480" step="5" /></div>
+        <div class="field"><label for="svCapacity" data-i18n="set.capacity">Guests per time slot</label><input class="input" id="svCapacity" type="number" min="1" max="20" step="1" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="svDurEn" data-i18n="set.durEn">Duration text (English)</label><input class="input" id="svDurEn" placeholder="20–30 min" dir="ltr" /></div>
+        <div class="field"><label for="svDurAr" data-i18n="set.durAr">Duration text (Arabic)</label><input class="input" id="svDurAr" placeholder="20 إلى 30 دقيقة" dir="rtl" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="svShortEn" data-i18n="set.shortEn">Short description (English)</label><input class="input" id="svShortEn" maxlength="120" dir="ltr" /></div>
+        <div class="field"><label for="svShortAr" data-i18n="set.shortAr">Short description (Arabic)</label><input class="input" id="svShortAr" maxlength="120" dir="rtl" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="svLongEn" data-i18n="set.longEn">Full description (English)</label><textarea class="input" id="svLongEn" rows="3" maxlength="300" dir="ltr"></textarea></div>
+        <div class="field"><label for="svLongAr" data-i18n="set.longAr">Full description (Arabic)</label><textarea class="input" id="svLongAr" rows="3" maxlength="300" dir="rtl"></textarea></div>
+      </div>
+      <label class="check"><input type="checkbox" id="svActive" /> <span data-i18n="set.activeLabel">Visible to customers</span></label>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="svFeatured" /> <span data-i18n="set.featuredLabel">Show the “Best value” badge</span></label>
+      <p class="form-error" id="svcError" role="alert" style="margin-top:14px"></p>
+      <div class="grid-2" style="margin-top:6px">
+        <button class="btn btn-outline" type="button" id="svcCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="svcSave" data-i18n="set.save">Save</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- New booking (phone / walk-in) -->
   <dialog class="policy" id="newDialog" aria-labelledby="newTitle">

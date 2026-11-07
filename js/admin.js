@@ -19,8 +19,8 @@
   const fmtDate = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(toUTC(s));
   const fmtLong = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toUTC(s));
   const fmtTime = (hhmm) => L.time(hhmm);
-  const svc = (id) => C.services.find((s) => s.id === id) || { name: id, capacity: 1 };
-  const svcName = (id) => L.field(svc(id), "name");
+  const svc = (id, fallbackName) => C.services.find((s) => s.id === id) || { name: fallbackName || id, capacity: 1 };
+  const svcName = (id, fallbackName) => L.field(svc(id, fallbackName), "name");
 
   const STATUS = {
     confirmed: { label: tr("st.confirmed"), cls: "st-confirmed" },
@@ -35,7 +35,7 @@
 
   let DB = null;
   let upcoming = [], past = [], filter = "today", search = "";
-  let unsubUpcoming = null, unsubPast = null, unsubDay = null, unsubSettings = null;
+  let unsubUpcoming = null, unsubPast = null, unsubDay = null, unsubSettings = null, unsubSite = null;
   let firstSnapshot = true, knownRefs = new Set();
   let settings = {}, dayLocks = [], scheduleDay = today();
 
@@ -51,6 +51,8 @@
       status(tr("admin.notConfigured"));
       return;
     }
+    siteSaved = !!(await window.RS_SITE);
+    renderLists();
     DB.onAuth(async (user) => {
       stopWatching();
       if (!user || user.isAnonymous) { showUser(null); view("loginView"); return; }
@@ -93,7 +95,7 @@
     firstSnapshot = true;
     unsubUpcoming = DB.watchBookings({ from: t }, (rows) => {
       if (!firstSnapshot) {
-        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(tr("admin.newToast", { name: b.name, service: svcName(b.service), date: fmtDate(b.date), time: fmtTime(b.time) })));
+        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(tr("admin.newToast", { name: b.name, service: svcName(b.service, b.serviceName), date: fmtDate(b.date), time: fmtTime(b.time) })));
       }
       knownRefs = new Set(rows.map((b) => b.ref));
       firstSnapshot = false;
@@ -101,11 +103,16 @@
       renderStats(); renderList();
     }, onWatchError);
     unsubSettings = DB.watchSettings((s) => { settings = s; renderSchedule(); });
+    unsubSite = DB.watchSite((site) => {
+      if (site) window.RS_applySite(site);
+      siteSaved = !!site;
+      refreshAll();
+    });
     watchScheduleDay();
   }
   function stopWatching() {
-    [unsubUpcoming, unsubPast, unsubDay, unsubSettings].forEach((u) => u && u());
-    unsubUpcoming = unsubPast = unsubDay = unsubSettings = null;
+    [unsubUpcoming, unsubPast, unsubDay, unsubSettings, unsubSite].forEach((u) => u && u());
+    unsubUpcoming = unsubPast = unsubDay = unsubSettings = unsubSite = null;
     upcoming = []; past = [];
   }
   function onWatchError(e) { console.error(e); toast(tr("admin.lost")); }
@@ -147,13 +154,13 @@
       if (b.date !== lastDate) { html += `<h2 class="day-title">${fmtLong(b.date)}</h2>`; lastDate = b.date; }
       const st = STATUS[b.status] || STATUS.confirmed;
       const phoneDigits = String(b.phone || "").replace(/\D/g, "");
-      const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: svcName(b.service), date: fmtDate(b.date), time: fmtTime(b.time) });
+      const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: svcName(b.service, b.serviceName), date: fmtDate(b.date), time: fmtTime(b.time) });
       html += `
         <article class="bk ${b.status === "cancelled" ? "is-cancelled" : ""}">
           <div class="bk-time">${fmtTime(b.time)}</div>
           <div class="bk-main">
             <div class="bk-top"><strong>${esc(b.name)}</strong><span class="badge ${st.cls}">${st.label}</span></div>
-            <div class="bk-meta">${esc(svcName(b.service))} · ${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
+            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
             <div class="bk-meta">
               <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
               ${b.email ? ` · <a class="ltr" href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>
@@ -193,8 +200,7 @@
   /* ---------- tabs ---------- */
   document.querySelectorAll("[data-tab]").forEach((t) => t.addEventListener("click", () => {
     document.querySelectorAll("[data-tab]").forEach((x) => { x.classList.toggle("active", x === t); x.setAttribute("aria-selected", x === t); });
-    $("tab-bookings").hidden = t.dataset.tab !== "bookings";
-    $("tab-schedule").hidden = t.dataset.tab !== "schedule";
+    ["bookings", "schedule", "settings"].forEach((n) => { $("tab-" + n).hidden = t.dataset.tab !== n; });
   }));
 
   /* ---------- schedule tab ---------- */
@@ -211,12 +217,14 @@
     $("dayClosed").checked = closed;
     const weekdayClosed = C.booking.closedWeekdays.includes(toUTC(scheduleDay).getUTCDay());
     const byRef = new Map(upcoming.concat(past).map((b) => [b.ref, b]));
-    let html = `<div class="sch-row sch-head"><span>${tr("admin.schTime")}</span>${C.services.map((s) => `<span>${esc(L.field(s, "name"))}</span>`).join("")}<span></span></div>`;
+    const shown = C.services.filter((s) => s.active !== false);
+    $("schedule").style.setProperty("--n", shown.length);
+    let html = `<div class="sch-row sch-head"><span>${tr("admin.schTime")}</span>${shown.map((s) => `<span>${esc(L.field(s, "name"))}</span>`).join("")}<span></span></div>`;
     C.booking.slots.forEach((t) => {
       const locks = dayLocks.filter((l) => l.time === t);
       const blocked = locks.some((l) => l.bookingId === "blocked");
       html += `<div class="sch-row ${closed || weekdayClosed ? "is-closed" : ""}"><span class="sch-time">${fmtTime(t)}</span>`;
-      C.services.forEach((s) => {
+      shown.forEach((s) => {
         const taken = locks.filter((l) => l.service === s.id);
         const names = taken.filter((l) => l.bookingId !== "blocked").map((l) => (byRef.get(l.bookingId) || {}).name || l.bookingId);
         const cell = names.length ? `<span class="cell booked">${names.map(esc).join(", ")}</span>`
@@ -248,8 +256,6 @@
 
   /* ---------- new booking (phone / walk-in) ---------- */
   const dlg = $("newDialog");
-  $("nbService").innerHTML = C.services.map((s) => `<option value="${esc(s.id)}">${esc(L.field(s, "name"))} · ${L.money(s.price)}</option>`).join("");
-  $("nbTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}">${fmtTime(t)}</option>`).join("");
   $("newBookingBtn").addEventListener("click", () => {
     $("nbDate").value = today(); $("nbDate").min = today();
     $("newError").textContent = "";
@@ -274,6 +280,339 @@
       $("newError").textContent = tr(err.code === "slot-full" ? "nb.errFull" : "nb.errSave");
       console.error(err);
     } finally { $("newSave").disabled = false; }
+  });
+
+  /* ---------- settings tab: services, prices, contact, hours, booking times, policy ---------- */
+  let siteSaved = false;          // false = still using the defaults from js/config.js
+  let draftSlots = [];
+  let editing = null, pendingPhoto = null;
+
+  function siteSnapshot() {
+    // JSON copy drops undefined values, which Firestore refuses.
+    return JSON.parse(JSON.stringify({
+      services: C.services,
+      hours: C.hours || [],
+      whatsapp: C.whatsapp,
+      phoneDisplay: C.phoneDisplay,
+      instagram: C.instagram,
+      mapsQuery: C.mapsQuery,
+      booking: {
+        slots: C.booking.slots,
+        closedWeekdays: C.booking.closedWeekdays,
+        daysAhead: C.booking.daysAhead,
+        minLeadMinutes: C.booking.minLeadMinutes
+      },
+      policy: C.policy || null
+    }));
+  }
+
+  async function saveSite(mutate, btn) {
+    const site = siteSnapshot();
+    mutate(site);
+    if (btn) btn.disabled = true;
+    try {
+      await DB.saveSite(site);
+      window.RS_applySite(site);
+      try { localStorage.setItem("rs-site", JSON.stringify(site)); } catch (e) { /* ignore */ }
+      siteSaved = true;
+      toast(tr("set.saved"));
+      refreshAll();
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast(tr("set.saveFailed"));
+      return false;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function refreshAll() {
+    renderLists(); renderSchedule(); renderSettings(); renderList(); renderStats();
+  }
+
+  function renderLists() {
+    $("nbService").innerHTML = C.services.filter((s) => s.active !== false)
+      .map((s) => `<option value="${esc(s.id)}">${esc(L.field(s, "name"))} · ${L.money(s.price)}</option>`).join("");
+    $("nbTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}">${fmtTime(t)}</option>`).join("");
+  }
+
+  function renderSettings() {
+    $("siteNote").textContent = tr(siteSaved ? "set.note" : "set.defaultsNote");
+    renderServiceAdmin();
+
+    $("stWhatsapp").value = C.whatsapp || "";
+    $("stPhone").value = C.phoneDisplay || "";
+    $("stInstagram").value = C.instagram || "";
+    $("stMaps").value = C.mapsQuery || "";
+    $("contactError").textContent = "";
+
+    $("hoursRows").innerHTML = "";
+    (C.hours || []).forEach(addHoursRow);
+
+    draftSlots = C.booking.slots.slice();
+    renderSlotChips();
+    const dows = tr("cal.dows").split(",");
+    $("weekdayChecks").innerHTML = dows.map((d, i) => `<label class="check"><input type="checkbox" value="${i}" ${C.booking.closedWeekdays.includes(i) ? "checked" : ""} /> <span>${esc(d)}</span></label>`).join("");
+    $("stDaysAhead").value = C.booking.daysAhead;
+    $("stLead").value = C.booking.minLeadMinutes;
+    $("bookingSetError").textContent = "";
+
+    const policy = (lang) => (C.policy && C.policy[lang] && C.policy[lang].length)
+      ? C.policy[lang] : [1, 2, 3, 4, 5].map((n) => L.tIn(lang, "policy." + n));
+    $("stPolicyEn").value = policy("en").join("\n");
+    $("stPolicyAr").value = policy("ar").join("\n");
+  }
+
+  function renderServiceAdmin() {
+    const box = $("serviceAdminList");
+    box.innerHTML = C.services.map((s, i) => `
+      <div class="svc-row ${s.active === false ? "is-hidden" : ""}">
+        <img ${RS.imgAttrs(s.image)} alt="" />
+        <div class="svc-info">
+          <strong>${esc(L.field(s, "name"))}</strong>
+          <span class="muted small">${L.money(s.price)} · ${esc(L.field(s, "duration") || "")} · ${tr("set.capShort", { n: s.capacity || 1 })}</span>
+          ${s.active === false ? `<span class="badge st-cancelled">${tr("set.hidden")}</span>` : ""}
+          ${s.featured ? `<span class="badge st-done">${tr("services.best")}</span>` : ""}
+        </div>
+        <div class="svc-actions">
+          <button class="btn btn-outline btn-sm" type="button" data-svc-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="${tr("set.up")}">↑</button>
+          <button class="btn btn-outline btn-sm" type="button" data-svc-act="down" data-i="${i}" ${i === C.services.length - 1 ? "disabled" : ""} aria-label="${tr("set.down")}">↓</button>
+          <button class="btn btn-outline btn-sm" type="button" data-svc-act="edit" data-i="${i}">${tr("set.edit")}</button>
+          <button class="btn btn-outline btn-sm" type="button" data-svc-act="toggle" data-i="${i}">${tr(s.active === false ? "set.show" : "set.hide")}</button>
+          <button class="btn btn-danger btn-sm" type="button" data-svc-act="delete" data-i="${i}">${tr("set.delete")}</button>
+        </div>
+      </div>`).join("");
+    RS.fillMedia(box);
+  }
+
+  const mediaId = (src) => (String(src || "").startsWith("media:") ? src.slice(6) : null);
+
+  $("serviceAdminList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-svc-act]"); if (!b) return;
+    const i = Number(b.dataset.i), act = b.dataset.svcAct, s = C.services[i];
+    if (act === "edit") { openService(i); return; }
+    if (act === "delete") {
+      if (!confirm(tr("set.confirmDelete", { name: L.field(s, "name") }))) return;
+      const ok = await saveSite((site) => { site.services.splice(i, 1); }, b);
+      if (ok && mediaId(s.image)) DB.deleteMedia(mediaId(s.image)).catch(() => {});
+      return;
+    }
+    await saveSite((site) => {
+      const list = site.services;
+      if (act === "toggle") list[i].active = list[i].active === false;
+      if (act === "up" && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
+      if (act === "down" && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
+    }, b);
+  });
+
+  /* service dialog */
+  function setPreview(src) {
+    const img = $("svcPreview");
+    const id = mediaId(src);
+    if (id) {
+      img.src = RS.mediaCache[id] || "";
+      img.dataset.media = id;
+      RS.fillMedia(img.parentElement);
+    } else {
+      img.removeAttribute("data-media");
+      img.src = src || "";
+    }
+  }
+
+  function openService(i) {
+    editing = i; pendingPhoto = null;
+    const s = i === null
+      ? { active: true, capacity: 1, minutes: 30, price: 50, image: "assets/img/leaves-wall.jpg" }
+      : C.services[i];
+    $("svcTitle").textContent = tr(i === null ? "set.svcNew" : "set.svcEdit");
+    $("svNameEn").value = s.name || "";
+    $("svNameAr").value = s.name_ar || "";
+    $("svPrice").value = s.price ?? "";
+    $("svMinutes").value = s.minutes ?? "";
+    $("svCapacity").value = s.capacity || 1;
+    $("svDurEn").value = s.duration || "";
+    $("svDurAr").value = s.duration_ar || "";
+    $("svShortEn").value = s.short || "";
+    $("svShortAr").value = s.short_ar || "";
+    $("svLongEn").value = s.long || "";
+    $("svLongAr").value = s.long_ar || "";
+    $("svActive").checked = s.active !== false;
+    $("svFeatured").checked = !!s.featured;
+    $("svcError").textContent = "";
+    $("svcPhoto").value = "";
+    setPreview(s.image);
+    $("svcDialog").showModal();
+  }
+
+  async function compressPhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const scale = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      let q = 0.82, out = c.toDataURL("image/jpeg", q);
+      while (out.length > 700000 && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+      return out;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  $("svcPhoto").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      pendingPhoto = await compressPhoto(file);
+      $("svcPreview").removeAttribute("data-media");
+      $("svcPreview").src = pendingPhoto;
+      $("svcError").textContent = "";
+    } catch (err) {
+      pendingPhoto = null;
+      $("svcError").textContent = tr("set.photoFailed");
+    }
+  });
+
+  function makeServiceId(name) {
+    let base = String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30) || "service";
+    let id = base;
+    while (C.services.some((s) => s.id === id)) id = base + "-" + Math.random().toString(36).slice(2, 6);
+    return id;
+  }
+
+  $("svcCancel").addEventListener("click", () => $("svcDialog").close());
+  $("svcForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameEn = $("svNameEn").value.trim(), nameAr = $("svNameAr").value.trim();
+    const price = Number($("svPrice").value);
+    if (!nameEn || !nameAr || $("svPrice").value === "" || !(price >= 0)) { $("svcError").textContent = tr("set.errName"); return; }
+    const old = editing === null ? null : C.services[editing];
+    const btn = $("svcSave");
+    btn.disabled = true;
+    let image = old ? old.image : "assets/img/leaves-wall.jpg";
+    try {
+      if (pendingPhoto) {
+        $("svcError").textContent = tr("set.uploading");
+        image = "media:" + await DB.uploadMedia(pendingPhoto);
+        $("svcError").textContent = "";
+      }
+    } catch (err) {
+      console.error(err);
+      $("svcError").textContent = tr("set.saveFailed");
+      btn.disabled = false;
+      return;
+    }
+    const minutes = Math.max(5, Math.round(Number($("svMinutes").value) || 30));
+    const svcData = {
+      ...(old || {}),
+      id: old ? old.id : makeServiceId(nameEn),
+      name: nameEn,
+      name_ar: nameAr,
+      price: Math.round(price * 100) / 100,
+      minutes,
+      capacity: Math.min(20, Math.max(1, Math.round(Number($("svCapacity").value) || 1))),
+      duration: $("svDurEn").value.trim() || `${minutes} min`,
+      duration_ar: $("svDurAr").value.trim() || `${minutes} دقيقة`,
+      short: $("svShortEn").value.trim(),
+      short_ar: $("svShortAr").value.trim(),
+      long: $("svLongEn").value.trim(),
+      long_ar: $("svLongAr").value.trim(),
+      image,
+      featured: $("svFeatured").checked,
+      active: $("svActive").checked
+    };
+    const index = editing;
+    const ok = await saveSite((site) => {
+      if (index === null) site.services.push(svcData); else site.services[index] = svcData;
+    });
+    btn.disabled = false;
+    if (ok) {
+      $("svcDialog").close();
+      if (old && pendingPhoto && mediaId(old.image)) DB.deleteMedia(mediaId(old.image)).catch(() => {});
+    }
+  });
+  $("addServiceBtn").addEventListener("click", () => openService(null));
+
+  /* contact */
+  $("contactForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const wa = $("stWhatsapp").value.replace(/\D/g, "");
+    const ig = $("stInstagram").value.trim();
+    if (wa.length < 8 || wa.length > 15) { $("contactError").textContent = tr("set.errWhatsapp"); return; }
+    if (ig && !/^https?:\/\//i.test(ig)) { $("contactError").textContent = tr("set.errInstagram"); return; }
+    $("contactError").textContent = "";
+    await saveSite((site) => {
+      site.whatsapp = wa;
+      site.phoneDisplay = $("stPhone").value.trim() || "+" + wa;
+      site.instagram = ig;
+      site.mapsQuery = $("stMaps").value.trim() || C.mapsQuery;
+    }, e.submitter);
+  });
+
+  /* opening hours */
+  function addHoursRow(h) {
+    h = h || {};
+    const row = document.createElement("div");
+    row.className = "hours-edit";
+    row.innerHTML = `
+      <input class="input" data-k="days" placeholder="${tr("set.daysEn")}" aria-label="${tr("set.daysEn")}" dir="ltr" value="${esc(h.days || "")}" />
+      <input class="input" data-k="days_ar" placeholder="${tr("set.daysAr")}" aria-label="${tr("set.daysAr")}" dir="rtl" value="${esc(h.days_ar || "")}" />
+      <input class="input" data-k="time" placeholder="${tr("set.timeEn")}" aria-label="${tr("set.timeEn")}" dir="ltr" value="${esc(h.time || "")}" />
+      <input class="input" data-k="time_ar" placeholder="${tr("set.timeAr")}" aria-label="${tr("set.timeAr")}" dir="rtl" value="${esc(h.time_ar || "")}" />
+      <button class="btn btn-danger btn-sm" type="button" data-remove>${tr("set.removeRow")}</button>`;
+    $("hoursRows").appendChild(row);
+  }
+  $("addHoursRow").addEventListener("click", () => addHoursRow());
+  $("hoursRows").addEventListener("click", (e) => { const b = e.target.closest("[data-remove]"); if (b) b.closest(".hours-edit").remove(); });
+  $("saveHours").addEventListener("click", async (e) => {
+    const rows = [...$("hoursRows").querySelectorAll(".hours-edit")].map((r) => {
+      const o = {};
+      r.querySelectorAll("[data-k]").forEach((i) => { o[i.dataset.k] = i.value.trim(); });
+      return o;
+    }).filter((o) => o.days || o.days_ar || o.time || o.time_ar);
+    await saveSite((site) => { site.hours = rows; }, e.currentTarget);
+  });
+
+  /* booking times */
+  function renderSlotChips() {
+    draftSlots = [...new Set(draftSlots)].sort();
+    $("slotChips").innerHTML = draftSlots.length
+      ? draftSlots.map((t) => `<span class="slot-chip">${fmtTime(t)}<button type="button" data-del-slot="${t}" aria-label="${tr("set.removeRow")} ${fmtTime(t)}">×</button></span>`).join("")
+      : `<span class="muted small">${tr("set.errSlots")}</span>`;
+  }
+  $("slotChips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-del-slot]"); if (!b) return;
+    draftSlots = draftSlots.filter((t) => t !== b.dataset.delSlot);
+    renderSlotChips();
+  });
+  $("addSlotBtn").addEventListener("click", () => {
+    const v = $("newSlot").value;
+    if (!/^\d{2}:\d{2}$/.test(v)) return;
+    draftSlots.push(v);
+    $("newSlot").value = "";
+    renderSlotChips();
+  });
+  $("saveBookingSet").addEventListener("click", async (e) => {
+    const days = Math.round(Number($("stDaysAhead").value));
+    const lead = Math.round(Number($("stLead").value));
+    if (!draftSlots.length) { $("bookingSetError").textContent = tr("set.errSlots"); return; }
+    if (!(days >= 1 && days <= 365) || !(lead >= 0 && lead <= 1440)) { $("bookingSetError").textContent = tr("set.errNumbers"); return; }
+    $("bookingSetError").textContent = "";
+    const closed = [...$("weekdayChecks").querySelectorAll("input:checked")].map((i) => Number(i.value));
+    await saveSite((site) => {
+      site.booking = { slots: draftSlots.slice(), closedWeekdays: closed, daysAhead: days, minLeadMinutes: lead };
+    }, e.currentTarget);
+  });
+
+  /* policy */
+  $("savePolicy").addEventListener("click", async (e) => {
+    const lines = (id) => $(id).value.split("\n").map((l) => l.trim()).filter(Boolean);
+    await saveSite((site) => { site.policy = { en: lines("stPolicyEn"), ar: lines("stPolicyAr") }; }, e.currentTarget);
   });
 
   start();

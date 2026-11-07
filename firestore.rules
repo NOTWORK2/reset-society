@@ -10,14 +10,18 @@ service cloud.firestore {
       return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Guests per time slot for each service. Keep in sync with "capacity" in js/config.js.
+    // Guests per time slot for each service. Once the admin saves its Settings, this comes from
+    // settings/site.capacity (hidden services are 0 = not bookable). Before that, these defaults apply.
     function capacity(svc) {
-      return {
-        'cold-plunge': 1,
-        'sauna': 1,
-        'compression-boots': 1,
-        'full-recovery': 1
-      }.get(svc, 0);
+      let site = /databases/$(database)/documents/settings/site;
+      return exists(site)
+        ? get(site).data.get('capacity', {}).get(svc, 0)
+        : {
+            'cold-plunge': 1,
+            'sauna': 1,
+            'compression-boots': 1,
+            'full-recovery': 1
+          }.get(svc, 0);
     }
 
     function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
@@ -42,6 +46,25 @@ service cloud.firestore {
     match /settings/public {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Prices, services, hours, contact details and policy, edited from the admin Settings tab.
+    match /settings/site {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.services is list
+        && request.resource.data.capacity is map;
+    }
+
+    // Service photos uploaded from the admin (small JPEGs stored as data URLs).
+    match /media/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['data', 'createdAt'])
+        && request.resource.data.data is string
+        && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,.*')
+        && request.resource.data.data.size() < 900000;
+      allow delete: if isAdmin();
     }
 
     // One document per taken place in a time slot. Public (no personal data) so the booking

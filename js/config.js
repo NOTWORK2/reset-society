@@ -105,3 +105,18 @@ window.RS_CONFIG = {
     }
   ]
 };
+
+/* Settings saved from the admin dashboard (Firestore: settings/site) replace the values above.
+   The last copy is kept in the browser so returning visitors see current prices immediately. */
+window.RS_applySite = function (site) {
+  const C = window.RS_CONFIG;
+  if (!site) return;
+  ["services", "hours", "whatsapp", "phoneDisplay", "instagram", "mapsQuery", "policy"].forEach((k) => {
+    if (site[k] !== undefined && site[k] !== null) C[k] = site[k];
+  });
+  if (site.booking) Object.assign(C.booking, site.booking);
+};
+try {
+  const cached = JSON.parse(localStorage.getItem("rs-site"));
+  if (cached) window.RS_applySite(cached);
+} catch (e) { /* no cache */ }
