@@ -41,6 +41,21 @@ window.RS_CONFIG = {
     online: false
   },
 
+  // Memberships (monthly) and session packs. Editable from the admin Settings tab.
+  // TODO: confirm session-pack prices and validity with the client (memberships are from the design).
+  plans: {
+    memberships: [
+      { id: "m4", sessions: 4, price: 400, image: "assets/img/sauna.jpg" },
+      { id: "m8", sessions: 8, price: 750, image: "assets/img/cold-plunge.jpg" },
+      { id: "m12", sessions: 12, price: 1100, image: "assets/img/full-recovery.jpg", featured: true }
+    ],
+    packs: [
+      { id: "p5", sessions: 5, price: 225, validity: "Valid for 2 months", validity_ar: "صالحة لمدة شهرين", image: "assets/img/cold-plunge.jpg" },
+      { id: "p10", sessions: 10, price: 425, validity: "Valid for 3 months", validity_ar: "صالحة لمدة 3 أشهر", image: "assets/img/sauna.jpg" },
+      { id: "p20", sessions: 20, price: 800, validity: "Valid for 6 months", validity_ar: "صالحة لمدة 6 أشهر", image: "assets/img/full-recovery.jpg", featured: true }
+    ]
+  },
+
   services: [
     {
       id: "cold-plunge",
@@ -111,7 +126,7 @@ window.RS_CONFIG = {
 window.RS_applySite = function (site) {
   const C = window.RS_CONFIG;
   if (!site) return;
-  ["services", "hours", "whatsapp", "phoneDisplay", "instagram", "mapsQuery", "policy"].forEach((k) => {
+  ["services", "hours", "whatsapp", "phoneDisplay", "instagram", "mapsQuery", "policy", "plans"].forEach((k) => {
     if (site[k] !== undefined && site[k] !== null) C[k] = site[k];
   });
   if (site.booking) Object.assign(C.booking, site.booking);

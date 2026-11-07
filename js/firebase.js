@@ -7,12 +7,13 @@
  *   settings/public       { closedDates: ["2026-12-02", ...] }
  *   settings/site         prices, services, hours, contact, booking times, policy (edited in the admin)
  *   media/{id}            service photos uploaded from the admin, stored as small JPEG data URLs
+ *   planRequests/{id}     membership / session-pack join requests from the Memberships page
  *   admins/{uid}          exists = that signed-in user is an admin (create it in the console)
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
-  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc
+  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator, signInAnonymously, signInWithEmailAndPassword, signOut,
@@ -196,6 +197,29 @@ async function deleteMedia(id) {
   await deleteDoc(doc(db, "media", id));
 }
 
+/* ---------- memberships & session packs ---------- */
+
+async function createPlanRequest(r) {
+  const user = await ensureSignedIn();
+  const data = {
+    ref: r.ref, type: r.type, planId: r.planId, label: r.label, sessions: r.sessions,
+    price: r.price, currency: r.currency, name: r.name, phone: r.phone,
+    status: "new", uid: user.uid, createdAt: serverTimestamp()
+  };
+  if (r.email) data.email = r.email;
+  if (r.lang) data.lang = r.lang;
+  await addDoc(collection(db, "planRequests"), data);
+}
+
+function watchPlanRequests(cb, onError) {
+  return onSnapshot(query(collection(db, "planRequests"), orderBy("createdAt", "desc"), limit(200)),
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), onError);
+}
+
+async function setPlanRequestStatus(id, status) {
+  await updateDoc(doc(db, "planRequests", id), { status, updatedAt: serverTimestamp() });
+}
+
 window.__rsDbResolve({
   mode: "firebase",
   slotKey,
@@ -204,6 +228,7 @@ window.__rsDbResolve({
   createBooking,
   loadSite,
   getMedia,
+  createPlanRequest,
   // admin
   auth,
   onAuth: (cb) => onAuthStateChanged(auth, cb),
@@ -221,5 +246,7 @@ window.__rsDbResolve({
   watchSite,
   saveSite,
   uploadMedia,
-  deleteMedia
+  deleteMedia,
+  watchPlanRequests,
+  setPlanRequestStatus
 });

@@ -115,6 +115,31 @@ service cloud.firestore {
         && lock.date == d.date && lock.time == d.time && lock['service'] == d['service'];
     }
 
+    // Membership / session-pack join requests from the Memberships page.
+    function validPlanRequest(d) {
+      return d.keys().hasOnly(['ref', 'type', 'planId', 'label', 'sessions', 'price', 'currency',
+                               'name', 'phone', 'email', 'lang', 'status', 'uid', 'createdAt'])
+        && d.keys().hasAll(['ref', 'type', 'planId', 'label', 'sessions', 'price', 'currency',
+                            'name', 'phone', 'status', 'uid', 'createdAt'])
+        && d.type in ['membership', 'pack']
+        && str(d.ref, 20) && str(d.planId, 40) && str(d.label, 80)
+        && d.sessions is int && d.sessions > 0 && d.sessions <= 500
+        && d.price is number && d.price >= 0
+        && str(d.currency, 5)
+        && str(d.name, 100) && str(d.phone, 30)
+        && (!('email' in d) || (d.email is string && d.email.size() <= 120))
+        && (!('lang' in d) || d.lang in ['en', 'ar'])
+        && d.status == 'new'
+        && d.uid == request.auth.uid
+        && d.createdAt == request.time;
+    }
+
+    match /planRequests/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && validPlanRequest(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
     match /bookings/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if isAdmin() || (signedIn() && validBooking(id, request.resource.data));

@@ -109,8 +109,11 @@
       refreshAll();
     });
     watchScheduleDay();
+    watchPlans();
   }
   function stopWatching() {
+    if (unsubPlans) { unsubPlans(); unsubPlans = null; }
+    planRequests = []; prFirst = true;
     [unsubUpcoming, unsubPast, unsubDay, unsubSettings, unsubSite].forEach((u) => u && u());
     unsubUpcoming = unsubPast = unsubDay = unsubSettings = unsubSite = null;
     upcoming = []; past = [];
@@ -200,7 +203,7 @@
   /* ---------- tabs ---------- */
   document.querySelectorAll("[data-tab]").forEach((t) => t.addEventListener("click", () => {
     document.querySelectorAll("[data-tab]").forEach((x) => { x.classList.toggle("active", x === t); x.setAttribute("aria-selected", x === t); });
-    ["bookings", "schedule", "settings"].forEach((n) => { $("tab-" + n).hidden = t.dataset.tab !== n; });
+    ["bookings", "plans", "schedule", "settings"].forEach((n) => { $("tab-" + n).hidden = t.dataset.tab !== n; });
   }));
 
   /* ---------- schedule tab ---------- */
@@ -302,7 +305,8 @@
         daysAhead: C.booking.daysAhead,
         minLeadMinutes: C.booking.minLeadMinutes
       },
-      policy: C.policy || null
+      policy: C.policy || null,
+      plans: C.plans || { memberships: [], packs: [] }
     }));
   }
 
@@ -340,6 +344,7 @@
   function renderSettings() {
     $("siteNote").textContent = tr(siteSaved ? "set.note" : "set.defaultsNote");
     renderServiceAdmin();
+    renderPlanEditor();
 
     $("stWhatsapp").value = C.whatsapp || "";
     $("stPhone").value = C.phoneDisplay || "";
@@ -613,6 +618,137 @@
   $("savePolicy").addEventListener("click", async (e) => {
     const lines = (id) => $(id).value.split("\n").map((l) => l.trim()).filter(Boolean);
     await saveSite((site) => { site.policy = { en: lines("stPolicyEn"), ar: lines("stPolicyAr") }; }, e.currentTarget);
+  });
+
+  /* ---------- plan requests (memberships & session packs) ---------- */
+  let planRequests = [], prFilter = "open", unsubPlans = null, prFirst = true, prKnown = new Set();
+  const PR_STATUS = {
+    new: "st-noshow", contacted: "st-done", active: "st-confirmed", cancelled: "st-cancelled"
+  };
+  function planName(r) {
+    // Stored label is English; rebuild it in the admin's language.
+    if (!L.isAr) return r.label;
+    return r.type === "membership" ? `${L.sessions(r.sessions)} ${tr("plans.perMonth")}` : `باقة ${L.sessions(r.sessions)}`;
+  }
+  function watchPlans() {
+    unsubPlans = DB.watchPlanRequests((rows) => {
+      if (!prFirst) rows.filter((r) => !prKnown.has(r.id)).forEach((r) => toast(tr("pr.newToast", { name: r.name, plan: planName(r) })));
+      prKnown = new Set(rows.map((r) => r.id));
+      prFirst = false;
+      planRequests = rows;
+      renderPlanRequests();
+    }, onWatchError);
+  }
+  function renderPlanRequests() {
+    const fresh = planRequests.filter((r) => r.status === "new").length;
+    $("prCount").hidden = !fresh;
+    $("prCount").textContent = fresh;
+    const rows = planRequests.filter((r) => prFilter === "all" ? true : prFilter === "active" ? r.status === "active" : (r.status === "new" || r.status === "contacted"));
+    const box = $("planRequestList");
+    if (!rows.length) { box.innerHTML = `<p class="empty">${tr("pr.empty")}</p>`; return; }
+    box.innerHTML = rows.map((r) => {
+      const phoneDigits = String(r.phone || "").replace(/\D/g, "");
+      const when = r.createdAt && r.createdAt.toDate ? new Intl.DateTimeFormat(L.locale, { dateStyle: "medium", timeStyle: "short", timeZone: C.timeZone }).format(r.createdAt.toDate()) : "";
+      const msg = tr("pr.msg", { name: r.name, plan: planName(r) });
+      const act = (status, label, cls) => `<button class="btn ${cls || "btn-outline"} btn-sm" data-pr="${esc(r.id)}" data-pr-status="${status}">${label}</button>`;
+      return `
+        <article class="bk ${r.status === "cancelled" ? "is-cancelled" : ""}">
+          <div class="bk-time">${L.money(r.price)}</div>
+          <div class="bk-main">
+            <div class="bk-top"><strong>${esc(r.name)}</strong><span class="badge ${PR_STATUS[r.status] || ""}">${tr("pr.st." + r.status)}</span></div>
+            <div class="bk-meta">${esc(tr(r.type === "membership" ? "plans.typeMembership" : "plans.typePack"))} · ${esc(planName(r))}</div>
+            <div class="bk-meta">
+              <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(r.phone)}</a>
+              ${r.email ? ` · <a class="ltr" href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : ""} · <span class="ref">${esc(r.ref)}</span>
+              ${when ? ` · ${esc(tr("pr.received", { date: when }))}` : ""}
+            </div>
+          </div>
+          <div class="bk-actions">
+            ${phoneDigits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${phoneDigits}?text=${encodeURIComponent(msg)}">${tr("act.whatsapp")}</a>` : ""}
+            ${r.status === "new" ? act("contacted", tr("pr.contacted")) : ""}
+            ${r.status === "new" || r.status === "contacted" ? act("active", tr("pr.activate")) + act("cancelled", tr("act.cancel"), "btn-danger") : ""}
+            ${r.status === "active" || r.status === "cancelled" ? act("contacted", tr("pr.reopen")) : ""}
+          </div>
+        </article>`;
+    }).join("");
+  }
+  $("planRequestList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-pr]"); if (!b) return;
+    b.disabled = true;
+    try { await DB.setPlanRequestStatus(b.dataset.pr, b.dataset.prStatus); toast(tr("admin.updated")); }
+    catch (err) { console.error(err); toast(tr("admin.updateFailed")); b.disabled = false; }
+  });
+  document.querySelectorAll("[data-pr-filter]").forEach((c) => c.addEventListener("click", () => {
+    prFilter = c.dataset.prFilter;
+    document.querySelectorAll("[data-pr-filter]").forEach((x) => x.classList.toggle("active", x === c));
+    renderPlanRequests();
+  }));
+
+  /* plans editor (Settings) */
+  function imageOptions(current) {
+    const list = [...new Set([current, ...C.services.map((s) => s.image), "assets/img/leaves-wall.jpg", "assets/img/hero-wide.jpg"].filter(Boolean))];
+    return list.map((src) => {
+      const svc = C.services.find((s) => s.image === src);
+      const label = svc ? L.field(svc, "name") : src.startsWith("media:") ? tr("set.image") : src.split("/").pop();
+      return `<option value="${esc(src)}" ${src === current ? "selected" : ""}>${esc(label)}</option>`;
+    }).join("");
+  }
+  function planRow(kind, p) {
+    p = p || { sessions: "", price: "" };
+    const row = document.createElement("div");
+    row.className = "plan-edit" + (kind === "packs" ? " is-pack" : "");
+    row.dataset.id = p.id || "";
+    row.innerHTML = `
+      <label><span>${tr("set.sessions")}</span><input class="input" data-k="sessions" type="number" min="1" max="500" value="${esc(p.sessions)}" /></label>
+      <label><span>${tr("set.price")}</span><input class="input" data-k="price" type="number" min="0" step="1" value="${esc(p.price)}" /></label>
+      ${kind === "packs" ? `
+      <label><span>${tr("set.validityEn")}</span><input class="input" data-k="validity" dir="ltr" value="${esc(p.validity || "")}" placeholder="Valid for 3 months" /></label>
+      <label><span>${tr("set.validityAr")}</span><input class="input" data-k="validity_ar" dir="rtl" value="${esc(p.validity_ar || "")}" placeholder="صالحة لمدة 3 أشهر" /></label>` : ""}
+      <label><span>${tr("set.image")}</span><select class="input" data-k="image">${imageOptions(p.image || "assets/img/leaves-wall.jpg")}</select></label>
+      <div class="plan-edit-flags">
+        <label class="check"><input type="checkbox" data-k="featured" ${p.featured ? "checked" : ""} /> <span>${tr("services.best")}</span></label>
+        <label class="check"><input type="checkbox" data-k="active" ${p.active === false ? "" : "checked"} /> <span>${tr("set.activeLabel")}</span></label>
+        <button class="btn btn-danger btn-sm" type="button" data-remove-plan>${tr("set.removeRow")}</button>
+      </div>`;
+    return row;
+  }
+  function renderPlanEditor() {
+    const plans = C.plans || { memberships: [], packs: [] };
+    $("membershipRows").innerHTML = ""; $("packRows").innerHTML = "";
+    (plans.memberships || []).forEach((p) => $("membershipRows").appendChild(planRow("memberships", p)));
+    (plans.packs || []).forEach((p) => $("packRows").appendChild(planRow("packs", p)));
+    $("plansSetError").textContent = "";
+  }
+  document.querySelectorAll("[data-add-plan]").forEach((b) => b.addEventListener("click", () => {
+    const kind = b.dataset.addPlan;
+    $(kind === "memberships" ? "membershipRows" : "packRows").appendChild(planRow(kind));
+  }));
+  ["membershipRows", "packRows"].forEach((id) => $(id).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-remove-plan]"); if (b) b.closest(".plan-edit").remove();
+  }));
+  function readPlanRows(id, prefix) {
+    return [...$(id).querySelectorAll(".plan-edit")].map((row) => {
+      const v = (k) => { const el = row.querySelector(`[data-k="${k}"]`); return el ? (el.type === "checkbox" ? el.checked : el.value.trim()) : undefined; };
+      const p = {
+        id: row.dataset.id || prefix + Math.random().toString(36).slice(2, 7),
+        sessions: Math.round(Number(v("sessions"))),
+        price: Math.round(Number(v("price")) * 100) / 100,
+        image: v("image"),
+        featured: v("featured"),
+        active: v("active")
+      };
+      if (prefix === "p") { p.validity = v("validity"); p.validity_ar = v("validity_ar"); }
+      return p;
+    });
+  }
+  $("savePlans").addEventListener("click", async (e) => {
+    const memberships = readPlanRows("membershipRows", "m");
+    const packs = readPlanRows("packRows", "p");
+    if ([...memberships, ...packs].some((p) => !(p.sessions >= 1) || !(p.price >= 0) || Number.isNaN(p.price))) {
+      $("plansSetError").textContent = tr("set.errPlans"); return;
+    }
+    $("plansSetError").textContent = "";
+    await saveSite((site) => { site.plans = { memberships, packs }; }, e.currentTarget);
   });
 
   start();
