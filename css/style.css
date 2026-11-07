@@ -667,6 +667,9 @@ html[dir="rtl"] {
    Memberships & Session Packs
    ============================================================ */
 .plans-wrap { max-width: 760px; margin: 0 auto; padding-bottom: 48px; }
+.plans-sheet .option-list { margin-top: 4px; }
+.plans-sheet .step-actions { padding-left: 0; padding-right: 0; }
+#bookPanel-memberships .plan-list { margin-top: 12px; }
 .plans-banner { padding-bottom: 96px; }
 .plans-banner h1 { max-width: 12ch; }
 .plans-tagline { margin-top: 14px; font-size: 13px; opacity: .9; }
@@ -752,35 +755,4 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 [dir="rtl"] .plan-card { padding: 12px 12px 12px 14px; }
 [dir="rtl"] .plan-count { line-height: 1.4; }
 
-/* Full Recovery → "Memberships & Session Packs" panel inside the booking list (matches the design) */
-.fr-mode { margin: 4px 0 12px; padding: 0 0 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: hidden; animation: stepIn .3s ease; }
-.fr-head {
-  position: relative; isolation: isolate; color: #f3ebe2; padding: 22px 18px 54px;
-  background: #3b2d22 url("../assets/img/leaves-wall.jpg") right center / cover no-repeat;
-}
-.fr-head::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(43,33,26,.78), rgba(43,33,26,.25)); }
-.fr-head h3 { font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1.1; margin: 0 0 8px; max-width: 13ch; }
-.fr-head .caps { font-size: 11px; margin: 0; opacity: .9; }
-.fr-mode .seg { margin: -34px 12px 0; position: relative; background: var(--card); box-shadow: var(--shadow); }
-.fr-mode .seg-btn { min-height: 46px; font-size: 15px; }
-.fr-mode .seg-btn[hidden] { display: none; }
-.fr-title { padding: 16px 14px 10px; }
-.fr-title h4 { font-family: var(--serif); font-weight: 400; font-size: 26px; line-height: 1.15; margin: 0 0 2px; }
-.fr-title p { margin: 0; color: var(--muted); font-size: 15px; }
-#frPlanList { gap: 8px; padding: 0 12px; }
-#frPlanList .plan-card { grid-template-columns: 76px 1px 1fr auto; gap: 10px; padding: 10px 12px 10px 10px; background: var(--card); }
-#frPlanList .plan-card img { width: 76px; height: 58px; }
-#frPlanList .plan-count { font-size: 21px; }
-.fr-benefits-title { font-family: var(--serif); font-weight: 400; font-size: 21px; margin: 18px 14px 12px; padding-top: 16px; border-top: 1px solid var(--line); }
-.fr-benefits { padding: 0 8px; }
-.fr-benefits svg { width: 26px; height: 26px; }
-.fr-benefits li { font-size: 12.5px; }
-.fr-single { display: inline-flex; align-items: center; gap: 8px; margin: 16px 14px 0; padding: 0; border: 0; background: none; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
-.fr-single:hover { color: var(--ink); }
-.fr-single svg { width: 15px; height: 15px; }
-[dir="rtl"] #frPlanList .plan-card { padding: 10px 10px 10px 12px; }
-[dir="rtl"] .fr-head { background-position: left center; }
-[dir="rtl"] .fr-head::after { background: linear-gradient(270deg, rgba(43,33,26,.78), rgba(43,33,26,.25)); }
-[dir="rtl"] .fr-single svg { transform: scaleX(-1); }
-[dir="rtl"] .fr-head h3, [dir="rtl"] .fr-title h4 { line-height: 1.45; }
 .plans-for { margin: 14px 4px 0; font-size: 14px; line-height: 1.5; }

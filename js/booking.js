@@ -7,55 +7,37 @@
   const nm = (s) => L.field(s, "name");
   const P = window.RS_PLANS;
 
-  /* Full Recovery → the "Memberships & Session Packs" panel from the design:
-     a Session Packs | Memberships switch with the plan cards, plus a link to book a single session. */
-  let frTab = "memberships";
-  const frChosen = {};
-  const frPlan = () => P.plansOf(frTab).find((p) => p.id === frChosen[frTab]);
-  function frModeHTML() {
-    if (!P.plansOf("memberships").length && !P.plansOf("packs").length) return "";
-    const svc = C.services.find((x) => x.id === P.serviceId());
-    return `<div class="fr-mode" id="frMode" hidden>
-      <div class="fr-head">
-        <h3>${tr("plans.title")}</h3>
-        <p class="caps">${tr("plans.tagline")}</p>
-      </div>
-      <div class="seg" role="tablist" aria-label="${esc(tr("plans.title"))}">
-        <button type="button" class="seg-btn" role="tab" data-fr-tab="packs">${tr("plans.tabPacks")}</button>
-        <button type="button" class="seg-btn" role="tab" data-fr-tab="memberships">${tr("plans.tabMemberships")}</button>
-      </div>
-      <div class="fr-title"><h4 id="frTitle"></h4><p id="frSub"></p></div>
-      <div class="plan-list" id="frPlanList" role="radiogroup"></div>
-      <h4 class="fr-benefits-title" id="frBenefitsTitle"></h4>
-      <ul class="benefit-grid fr-benefits" id="frBenefits"></ul>
-      ${svc ? `<button type="button" class="fr-single" data-fr-single>${tr("fr.single", { price: L.money(svc.price) })} <span data-icon="arrow" style="display:contents">${ICONS.arrow}</span></button>` : ""}
-    </div>`;
+  /* First step: "Session Packs" (book one of the services) | "Memberships" (join a monthly plan). */
+  let bookTab = location.hash === "#memberships" ? "memberships" : "sessions";
+  let chosenPlan = null;
+  const selectedPlan = () => P.plansOf("memberships").find((p) => p.id === chosenPlan);
+
+  function renderMemberships() {
+    const list = P.plansOf("memberships");
+    if (!list.some((p) => p.id === chosenPlan)) chosenPlan = P.defaultChoice(list);
+    const svc = P.service();
+    $("plansFor").innerHTML = svc
+      ? `${tr("plans.forService", { service: `<strong>${esc(L.field(svc, "name"))}</strong>` })} <span class="muted">(${esc(L.field(svc, "short") || "")})</span>`
+      : "";
+    $("planList").innerHTML = P.cardsHTML(list, "memberships", chosenPlan, "plan");
+    $("benefits").innerHTML = P.benefitsHTML("memberships");
+    $("planCta").disabled = !list.length;
+    $("bookTab-memberships").hidden = !list.length;
+    RS.fillMedia($("planList"));
   }
-  function renderFrPlans() {
-    if (!$("frPlanList")) return;
-    let list = P.plansOf(frTab);
-    if (!list.length) { frTab = frTab === "packs" ? "memberships" : "packs"; list = P.plansOf(frTab); }
-    if (!list.some((p) => p.id === frChosen[frTab])) frChosen[frTab] = P.defaultChoice(list);
-    $("frMode").querySelectorAll("[data-fr-tab]").forEach((b) => {
-      const on = b.dataset.frTab === frTab;
+
+  function showBookTab(tab, focus) {
+    if (tab === "memberships" && !P.plansOf("memberships").length) tab = "sessions";
+    bookTab = tab;
+    document.querySelectorAll("[data-book-tab]").forEach((b) => {
+      const on = b.dataset.bookTab === tab;
       b.classList.toggle("active", on);
       b.setAttribute("aria-selected", String(on));
-      b.hidden = !P.plansOf(b.dataset.frTab).length;
+      b.tabIndex = on ? 0 : -1;
     });
-    $("frTitle").textContent = tr(frTab === "memberships" ? "plans.membershipsTitle" : "plans.packsTitle");
-    $("frSub").textContent = tr(frTab === "memberships" ? "plans.membershipsSub" : "plans.packsSub");
-    $("frPlanList").innerHTML = P.cardsHTML(list, frTab, frChosen[frTab], "frplan");
-    $("frBenefitsTitle").textContent = tr(frTab === "memberships" ? "plans.benefitsMemberships" : "plans.benefitsPacks");
-    $("frBenefits").innerHTML = P.benefitsHTML(frTab);
-    RS.fillMedia($("frPlanList"));
-  }
-  // Returns the plan tab when the Full Recovery panel is active, otherwise null.
-  function updateFrMode() {
-    const box = $("frMode");
-    const isFr = !!box && state.serviceId === P.serviceId();
-    if (box) box.hidden = !isFr;
-    $("svcNextLabel").textContent = tr(!isFr ? "continue" : frTab === "memberships" ? "plans.joinMembership" : "plans.buyPack");
-    return isFr ? frTab : null;
+    $("bookPanel-sessions").hidden = tab !== "sessions";
+    $("bookPanel-memberships").hidden = tab !== "memberships";
+    if (focus) $("bookTab-" + tab).focus();
   }
   const STEPS = ["service", "datetime", "details", "payment", "confirmed"];
   const STORE_KEY = "rs-booking";
@@ -178,7 +160,7 @@
   /* ---------- rendering ---------- */
   function renderServices() {
     const list = $("serviceList");
-    list.querySelectorAll("input, label, .fr-mode").forEach((el) => el.remove());
+    list.querySelectorAll("input, label").forEach((el) => el.remove());
     list.insertAdjacentHTML("beforeend", activeServices().map((s) => `
       <input class="sr-only" type="radio" name="service" id="svc-${esc(s.id)}" value="${esc(s.id)}" ${state.serviceId === s.id ? "checked" : ""} />
       <label class="service-opt" for="svc-${esc(s.id)}">
@@ -189,10 +171,10 @@
           <p>${esc(L.field(s, "short"))}</p>
         </div>
         <span class="radio">${ICONS.check}</span>
-      </label>${s.id === P.serviceId() ? frModeHTML() : ""}`).join(""));
+      </label>`).join(""));
     RS.fillMedia(list);
-    renderFrPlans();
-    updateFrMode();
+    renderMemberships();
+    showBookTab(bookTab);
   }
 
   function renderPolicy() {
@@ -307,6 +289,7 @@
 
   /* ---------- navigation ---------- */
   function current() { const h = location.hash.slice(1); return STEPS.includes(h) ? h : "service"; }
+  window.addEventListener("hashchange", () => { if (location.hash === "#memberships") showBookTab("memberships"); });
 
   function show(step) {
     const missing = firstIncomplete(step);
@@ -336,10 +319,6 @@
     const i = STEPS.indexOf(current());
     const step = current();
     if (step === "service" && !service()) { toast(tr("toast.chooseSession")); return; }
-    if (step === "service" && updateFrMode()) {
-      P.openJoin(frPlan(), frTab);
-      return;
-    }
     if (step === "datetime" && !state.time) { toast(tr("toast.chooseTime")); return; }
     go(STEPS[i + 1]);
   }
@@ -476,16 +455,21 @@
   /* ---------- events ---------- */
   function bind() {
     $("serviceList").addEventListener("change", (e) => {
-      if (e.target.name === "frplan") { frChosen[frTab] = e.target.value; return; }
       if (e.target.name !== "service") return;
       state.serviceId = e.target.value;
-      save(); renderBindings(); updateFrMode();
+      save(); renderBindings();
     });
-    $("serviceList").addEventListener("click", (e) => {
-      const tabBtn = e.target.closest("[data-fr-tab]");
-      if (tabBtn) { frTab = tabBtn.dataset.frTab; renderFrPlans(); updateFrMode(); return; }
-      if (e.target.closest("[data-fr-single]")) go("datetime");
+    document.querySelectorAll("[data-book-tab]").forEach((b) => b.addEventListener("click", () => {
+      showBookTab(b.dataset.bookTab);
+      if (current() === "service") history.replaceState(null, "", b.dataset.bookTab === "memberships" ? "#memberships" : "book.html");
+    }));
+    document.querySelector(".seg").addEventListener("keydown", (e) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+      e.preventDefault();
+      showBookTab(bookTab === "sessions" ? "memberships" : "sessions", true);
     });
+    $("planList").addEventListener("change", (e) => { if (e.target.name === "plan") chosenPlan = e.target.value; });
+    $("planCta").addEventListener("click", () => P.openJoin(selectedPlan(), "memberships"));
     document.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", next));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => {
       const i = STEPS.indexOf(current());

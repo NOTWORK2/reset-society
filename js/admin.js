@@ -720,7 +720,7 @@
     $("plansService").innerHTML = C.services.map((sv) => `<option value="${esc(sv.id)}" ${sv.id === forId ? "selected" : ""}>${esc(L.field(sv, "name"))}</option>`).join("");
     $("membershipRows").innerHTML = ""; $("packRows").innerHTML = "";
     (plans.memberships || []).forEach((p) => $("membershipRows").appendChild(planRow("memberships", p)));
-    (plans.packs || []).forEach((p) => $("packRows").appendChild(planRow("packs", p)));
+    // "Session Packs" on the booking page are the single sessions, so there is no separate pack list.
     $("plansSetError").textContent = "";
   }
   document.querySelectorAll("[data-add-plan]").forEach((b) => b.addEventListener("click", () => {

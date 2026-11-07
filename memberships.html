@@ -2,108 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Memberships &amp; Session Packs | Reset Society</title>
-  <meta name="description" content="Monthly memberships and session packs at Reset Society, Umm Al Quwain. Recover regularly for less." />
-  <meta name="theme-color" content="#f5eee6" />
-  <link rel="icon" type="image/png" href="assets/img/logo-r.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611072102" />
-  <script src="js/i18n.js?v=202611072102"></script>
-  <script src="js/theme.js?v=202611072102"></script>
+  <title>Memberships | Reset Society</title>
+  <meta name="robots" content="noindex" />
+  <!-- Memberships now live on the booking page. Old links land here and are forwarded. -->
+  <meta http-equiv="refresh" content="0; url=book.html#memberships" />
+  <script>location.replace("book.html" + (location.search || "") + "#memberships");</script>
 </head>
-<body class="booking-page plans-page">
-  <span hidden data-i18n-title="plans.pageTitle"></span>
-  <header class="site-header is-solid">
-    <div class="container">
-      <a class="brand-inline" href="index.html">Reset Society</a>
-      <div class="header-tools always">
-        <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
-        <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
-        <button class="menu-btn" type="button" data-i18n-aria="menu.open" aria-controls="menu" aria-expanded="false"><span></span></button>
-      </div>
-    </div>
-  </header>
-
-  <div class="menu" id="menu" aria-hidden="true">
-    <div class="menu-backdrop" data-menu-close></div>
-    <aside class="menu-panel" role="dialog" aria-modal="true" data-i18n-aria="menu.title">
-      <div class="menu-bg"><img src="assets/img/leaves-wall.jpg" alt="" /></div>
-      <div class="menu-top">
-        <a class="brand" href="index.html" aria-label="Reset Society">
-          <span class="brand-mark">RESET</span>
-          <span class="brand-sub">SOCIETY</span>
-        </a>
-        <button class="menu-close" type="button" data-menu-close data-i18n-aria="menu.close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
-      <p class="menu-eyebrow caps" data-i18n="menu.title">Menu</p>
-      <nav class="menu-nav" data-i18n-aria="menu.title">
-          <a href="index.html"><span class="menu-num">01</span><span class="menu-label" data-i18n="nav.home">Home</span><span class="menu-arrow" data-icon="arrow"></span></a>
-          <a href="index.html#services"><span class="menu-num">02</span><span class="menu-label" data-i18n="nav.services">Services</span><span class="menu-arrow" data-icon="arrow"></span></a>
-          <a href="memberships.html"><span class="menu-num">03</span><span class="menu-label" data-i18n="nav.memberships">Memberships</span><span class="menu-arrow" data-icon="arrow"></span></a>
-          <a href="index.html#ritual"><span class="menu-num">04</span><span class="menu-label" data-i18n="nav.ritual">The Ritual</span><span class="menu-arrow" data-icon="arrow"></span></a>
-          <a href="index.html#visit"><span class="menu-num">05</span><span class="menu-label" data-i18n="nav.visitUs">Visit Us</span><span class="menu-arrow" data-icon="arrow"></span></a>
-      </nav>
-      <a class="btn btn-light btn-block menu-cta" href="book.html"><span data-i18n="nav.book">Book a Session</span> <span data-icon="arrow" style="display:contents"></span></a>
-      <div class="menu-foot">
-        <div class="menu-contact">
-          <a class="menu-chip" data-wa><span data-icon="whatsapp" style="display:contents"></span><span data-i18n="nav.whatsapp">WhatsApp</span></a>
-          <a class="menu-chip" data-ig><span data-icon="instagram" style="display:contents"></span><span data-i18n="nav.instagram">Instagram</span></a>
-        </div>
-        <div class="menu-meta">
-          <span class="menu-city"><span data-icon="pin" style="display:contents"></span><span data-i18n="city">Umm Al Quwain, UAE</span></span>
-          <div class="menu-tools">
-            <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
-            <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
-          </div>
-        </div>
-      </div>
-    </aside>
-  </div>
-
-  <main class="booking-main plans-main">
-    <div class="plans-wrap">
-      <section class="banner plans-banner">
-        <div class="banner-bg"><img src="assets/img/leaves-wall.jpg" alt="" /></div>
-        <h1 data-i18n="plans.title">Memberships &amp; Session Packs</h1>
-        <p class="caps plans-tagline" data-i18n="plans.tagline">Recover / Reset / Perform</p>
-      </section>
-
-      <div class="sheet plans-sheet">
-        <div class="seg" role="tablist" data-i18n-aria="plans.title">
-          <button class="seg-btn" type="button" role="tab" id="tabBtn-packs" data-plan-tab="packs" aria-controls="planPanel" data-i18n="plans.tabPacks">Session Packs</button>
-          <button class="seg-btn" type="button" role="tab" id="tabBtn-memberships" data-plan-tab="memberships" aria-controls="planPanel" data-i18n="plans.tabMemberships">Memberships</button>
-        </div>
-
-        <div id="planPanel" role="tabpanel">
-          <p class="plans-for" id="plansFor"></p>
-          <div class="plans-head">
-            <h2 id="plansTitle"></h2>
-            <p id="plansSub"></p>
-          </div>
-          <div class="plan-list" id="planList" role="radiogroup"></div>
-
-          <section class="benefits">
-            <h3 id="benefitsTitle"></h3>
-            <ul class="benefit-grid" id="benefits"></ul>
-          </section>
-
-          <button class="btn btn-primary btn-block" type="button" id="planCta"><span id="planCtaLabel"></span> <span data-icon="arrow" style="display:contents"></span></button>
-          <p class="plans-note" data-i18n="plans.note">No online payment needed. Pay at the studio and we'll confirm on WhatsApp.</p>
-        </div>
-      </div>
-    </div>
-  </main>
-
-
-  <script src="js/config.js?v=202611072102"></script>
-  <script src="js/firebase-config.js?v=202611072102"></script>
-  <script src="js/common.js?v=202611072102"></script>
-  <script src="js/plans-core.js?v=202611072102"></script>
-  <script src="js/plans.js?v=202611072102"></script>
-</body>
+<body><a href="book.html#memberships">Memberships</a></body>
 </html>

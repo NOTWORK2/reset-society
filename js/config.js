@@ -41,8 +41,7 @@ window.RS_CONFIG = {
     online: false
   },
 
-  // Memberships (monthly) and session packs. Editable from the admin Settings tab.
-  // TODO: confirm session-pack prices and validity with the client (memberships are from the design).
+  // Monthly memberships for Full Recovery (from the client's design). Editable from the admin Settings tab.
   plans: {
     serviceId: "full-recovery", // memberships and packs are for this service
     memberships: [
@@ -50,12 +49,7 @@ window.RS_CONFIG = {
       { id: "m8", sessions: 8, price: 750, image: "assets/img/cold-plunge.jpg" },
       { id: "m12", sessions: 12, price: 1100, image: "assets/img/full-recovery.jpg", featured: true }
     ],
-    packs: [
-      // Same sessions as the memberships (client's request). TODO: confirm pack prices and validity.
-      { id: "p4", sessions: 4, price: 400, image: "assets/img/sauna.jpg" },
-      { id: "p8", sessions: 8, price: 750, image: "assets/img/cold-plunge.jpg" },
-      { id: "p12", sessions: 12, price: 1100, image: "assets/img/full-recovery.jpg", featured: true }
-    ]
+    packs: [] // "Session Packs" on the booking page are the single sessions above
   },
 
   services: [
