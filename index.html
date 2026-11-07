@@ -46,24 +46,40 @@
   </header>
 
   <div class="menu" id="menu" aria-hidden="true">
-    <div class="container menu-top">
-      <span class="brand-inline">Reset Society</span>
-      <button class="menu-close" type="button" data-i18n-aria="menu.close">&times;</button>
-    </div>
-    <div class="container" style="flex:1;display:flex;flex-direction:column">
-      <nav aria-label="Menu">
-        <a href="#top" data-i18n="nav.home">Home</a>
-        <a href="#services" data-i18n="nav.services">Services</a>
-        <a href="#ritual" data-i18n="nav.ritual">The Ritual</a>
-        <a href="#visit" data-i18n="nav.visitUs">Visit Us</a>
-        <a href="book.html" data-i18n="nav.book">Book a Session</a>
-      </nav>
-      <div class="menu-foot">
-        <a data-wa data-i18n="nav.whatsapp">WhatsApp</a>
-        <a data-ig data-i18n="nav.instagram">Instagram</a>
-        <span data-i18n="city">Umm Al Quwain, UAE</span>
+    <div class="menu-backdrop" data-menu-close></div>
+    <aside class="menu-panel" role="dialog" aria-modal="true" data-i18n-aria="menu.title">
+      <div class="menu-bg"><img src="assets/img/leaves-wall.jpg" alt="" /></div>
+      <div class="menu-top">
+        <a class="brand" href="#top" aria-label="Reset Society">
+          <span class="brand-mark">RESET</span>
+          <span class="brand-sub">SOCIETY</span>
+        </a>
+        <button class="menu-close" type="button" data-menu-close data-i18n-aria="menu.close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </div>
-    </div>
+      <p class="menu-eyebrow caps" data-i18n="menu.title">Menu</p>
+      <nav class="menu-nav" data-i18n-aria="menu.title">
+          <a href="#top"><span class="menu-num">01</span><span class="menu-label" data-i18n="nav.home">Home</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="#services"><span class="menu-num">02</span><span class="menu-label" data-i18n="nav.services">Services</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="#ritual"><span class="menu-num">03</span><span class="menu-label" data-i18n="nav.ritual">The Ritual</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="#visit"><span class="menu-num">04</span><span class="menu-label" data-i18n="nav.visitUs">Visit Us</span><span class="menu-arrow" data-icon="arrow"></span></a>
+      </nav>
+      <a class="btn btn-light btn-block menu-cta" href="book.html"><span data-i18n="nav.book">Book a Session</span> <span data-icon="arrow" style="display:contents"></span></a>
+      <div class="menu-foot">
+        <div class="menu-contact">
+          <a class="menu-chip" data-wa><span data-icon="whatsapp" style="display:contents"></span><span data-i18n="nav.whatsapp">WhatsApp</span></a>
+          <a class="menu-chip" data-ig><span data-icon="instagram" style="display:contents"></span><span data-i18n="nav.instagram">Instagram</span></a>
+        </div>
+        <div class="menu-meta">
+          <span class="menu-city"><span data-icon="pin" style="display:contents"></span><span data-i18n="city">Umm Al Quwain, UAE</span></span>
+          <div class="menu-tools">
+            <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
+            <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <main id="top">

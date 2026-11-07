@@ -46,13 +46,42 @@
     const menu = document.getElementById("menu");
     if (!menu) return;
     const openBtn = document.querySelector(".menu-btn");
-    const closeBtn = menu.querySelector(".menu-close");
-    const open = () => { menu.classList.add("open"); menu.setAttribute("aria-hidden", "false"); openBtn.setAttribute("aria-expanded", "true"); document.body.style.overflow = "hidden"; closeBtn.focus(); };
-    const close = () => { menu.classList.remove("open"); menu.setAttribute("aria-hidden", "true"); openBtn.setAttribute("aria-expanded", "false"); document.body.style.overflow = ""; };
+    const panel = menu.querySelector(".menu-panel") || menu;
+    const isOpen = () => menu.classList.contains("open");
+    const open = (e) => {
+      menu.classList.add("open"); menu.setAttribute("aria-hidden", "false");
+      openBtn.setAttribute("aria-expanded", "true"); document.body.classList.add("menu-open");
+      // Move focus into the menu for keyboard users (a tap reports detail > 0).
+      const target = (e && e.detail === 0) ? menu.querySelector(".menu-close") : panel;
+      if (target === panel) panel.setAttribute("tabindex", "-1");
+      setTimeout(() => { if (target) target.focus({ preventScroll: true }); }, 60);
+    };
+    const close = (restoreFocus) => {
+      menu.classList.remove("open"); menu.setAttribute("aria-hidden", "true");
+      openBtn.setAttribute("aria-expanded", "false"); document.body.classList.remove("menu-open");
+      if (restoreFocus) openBtn.focus({ preventScroll: true });
+    };
     openBtn.addEventListener("click", open);
-    closeBtn.addEventListener("click", () => { close(); openBtn.focus(); });
-    menu.querySelectorAll("nav a").forEach((a) => a.addEventListener("click", close));
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menu.classList.contains("open")) { close(); openBtn.focus(); } });
+    menu.querySelectorAll("[data-menu-close]").forEach((el) => el.addEventListener("click", () => close(true)));
+    menu.querySelectorAll(".menu-nav a, .menu-cta").forEach((a) => a.addEventListener("click", () => close(false)));
+    document.addEventListener("keydown", (e) => {
+      if (!isOpen()) return;
+      if (e.key === "Escape") { close(true); return; }
+      if (e.key === "Tab") {
+        // Keep keyboard focus inside the open menu.
+        const items = [...panel.querySelectorAll("a[href], button")].filter((el) => el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    // Mark the page the visitor is on.
+    const here = location.pathname.split("/").pop() || "index.html";
+    menu.querySelectorAll(".menu-nav a").forEach((a) => {
+      const href = a.getAttribute("href");
+      if ((here === "index.html" && href === "#top") || href === here) a.setAttribute("aria-current", "page");
+    });
   }
 
   function initHeader() {
