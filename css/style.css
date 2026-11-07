@@ -491,3 +491,57 @@ dialog.policy::backdrop { background: rgba(30,22,16,.55); }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* ============================================================
+   Language switch + Arabic (right-to-left)
+   ============================================================ */
+.brand, .brand-inline { direction: ltr; }
+.brand-mark, .brand-sub, .brand-inline { font-family: "Jost", "DM Sans", sans-serif; }
+
+.lang-btn {
+  background: none; border: 1px solid currentColor; color: inherit; border-radius: 99px;
+  padding: 7px 13px; font-size: 13px; line-height: 1; opacity: .85; cursor: pointer;
+  font-family: "IBM Plex Sans Arabic", "DM Sans", sans-serif; letter-spacing: 0; text-transform: none;
+}
+.lang-btn:hover { opacity: 1; }
+.lang-btn[lang="en"] { font-family: "DM Sans", sans-serif; }
+.header-tools { display: flex; align-items: center; gap: 10px; }
+.footer-links .lang-btn { padding: 5px 11px; }
+@media (min-width: 960px) {
+  .header-tools:not(.always) { display: none; }
+}
+
+/* Phone numbers, emails and references always read left-to-right. */
+.ltr, [data-tel], .ref { direction: ltr; unicode-bidi: isolate; }
+
+html[dir="rtl"] {
+  --serif: "Noto Naskh Arabic", "Newsreader", serif;
+  --sans: "IBM Plex Sans Arabic", "DM Sans", system-ui, sans-serif;
+  --caps: "IBM Plex Sans Arabic", "Jost", sans-serif;
+}
+/* Letter-spacing breaks Arabic letter joining. */
+[dir="rtl"] .caps, [dir="rtl"] .nav-links a, [dir="rtl"] .btn-caps, [dir="rtl"] .hero h1,
+[dir="rtl"] .hero-sub, [dir="rtl"] .steps .num, [dir="rtl"] .soon, [dir="rtl"] .day-title,
+[dir="rtl"] .side-title, [dir="rtl"] .eyebrow { letter-spacing: 0; text-transform: none; }
+[dir="rtl"] .hero h1 { padding-left: 0; line-height: 1.5; font-weight: 400; }
+[dir="rtl"] .hero-sub { padding-left: 0; font-size: clamp(15px, 4vw, 18px); }
+[dir="rtl"] .hero-foot, [dir="rtl"] .eyebrow, [dir="rtl"] .banner-center .caps, [dir="rtl"] .see-you { font-size: 15px; }
+[dir="rtl"] .section h2, [dir="rtl"] .banner h1, [dir="rtl"] .step-head h1, [dir="rtl"] .service-card h3,
+[dir="rtl"] .service-opt h3, [dir="rtl"] .summary-top h3, [dir="rtl"] .steps h3, [dir="rtl"] .section-title,
+[dir="rtl"] .policy h2 { line-height: 1.5; }
+[dir="rtl"] .menu nav a { line-height: 1.6; }
+
+/* Mirror arrows and chevrons. */
+[dir="rtl"] [data-icon="arrow"] svg, [dir="rtl"] [data-icon="back"] svg,
+[dir="rtl"] [data-icon="chevL"] svg, [dir="rtl"] [data-icon="chevR"] svg { transform: scaleX(-1); }
+[dir="rtl"] .link-arrow:hover svg { transform: scaleX(-1) translateX(4px); }
+
+[dir="rtl"] .menu-btn, [dir="rtl"] .menu-close { margin-right: 0; margin-left: -8px; }
+[dir="rtl"] .back-btn { margin-left: 0; margin-right: -10px; }
+[dir="rtl"] .summary-row .v { margin-left: 0; margin-right: auto; text-align: left; }
+[dir="rtl"] .policy ul { padding-left: 0; padding-right: 20px; }
+[dir="rtl"] .soon { margin-left: 0; margin-right: 6px; }
+[dir="rtl"] .skip-link { left: auto; right: 12px; }
+[dir="rtl"] .phone-wrap { direction: ltr; }
+[dir="rtl"] .banner:not(.banner-center)::after { background: linear-gradient(270deg, rgba(43,33,26,.75), rgba(43,33,26,.2)); }
+[dir="rtl"] .banner-bg img { transform: scaleX(-1); }

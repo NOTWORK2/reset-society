@@ -2,6 +2,9 @@
 (function () {
   const C = window.RS_CONFIG;
   const { ICONS, esc, waLink, toast } = window.RS;
+  const L = window.RS_I18N;
+  const tr = L.t;
+  const nm = (s) => L.field(s, "name");
   const STEPS = ["service", "datetime", "details", "payment", "confirmed"];
   const STORE_KEY = "rs-booking";
   const $ = (id) => document.getElementById(id);
@@ -73,14 +76,11 @@
   const slotMinutes = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
   function fmtDate(s) {
-    return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", year: "numeric" })
-      .format(toUTC(s)).replace(/^(\w+)/, "$1,").replace(",,", ",");
+    const out = new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", year: "numeric" })
+      .format(toUTC(s));
+    return L.isAr ? out : out.replace(/^(\w+)/, "$1,").replace(",,", ",");
   }
-  function fmtTime(hhmm) {
-    const mins = slotMinutes(hhmm); let h = Math.floor(mins / 60); const m = mins % 60;
-    const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
-    return `${h}:${pad(m)} ${ap}`;
-  }
+  const fmtTime = (hhmm) => L.time(hhmm);
 
   function slotsFor(dateStr) {
     const now = studioNow();
@@ -130,9 +130,9 @@
       <label class="service-opt" for="svc-${esc(s.id)}">
         <img src="${esc(s.image)}" alt="" />
         <div>
-          <h3>${esc(s.name)}</h3>
-          <div class="meta"><span>${s.price} ${C.currency}</span><span class="sep"></span><span>${esc(s.duration)}</span></div>
-          <p>${esc(s.short)}</p>
+          <h3>${esc(nm(s))}</h3>
+          <div class="meta"><span>${L.money(s.price)}</span><span class="sep"></span><span>${esc(L.field(s, "duration"))}</span></div>
+          <p>${esc(L.field(s, "short"))}</p>
         </div>
         <span class="radio">${ICONS.check}</span>
       </label>`).join(""));
@@ -149,51 +149,51 @@
     if (!view) { const p = parseYmd(state.date || today); view = { y: p.y, m: p.m }; }
     const first = new Date(Date.UTC(view.y, view.m, 1));
     const daysInMonth = new Date(Date.UTC(view.y, view.m + 1, 0)).getUTCDate();
-    $("calTitle").textContent = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", month: "long", year: "numeric" }).format(first);
+    $("calTitle").textContent = new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", month: "long", year: "numeric" }).format(first);
 
     const t = parseYmd(today), mx = parseYmd(max);
     $("calPrev").disabled = view.y < t.y || (view.y === t.y && view.m <= t.m);
     $("calNext").disabled = view.y > mx.y || (view.y === mx.y && view.m >= mx.m);
 
-    let html = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => `<div class="cal-dow" role="columnheader">${d}</div>`).join("");
+    let html = tr("cal.dows").split(",").map((d) => `<div class="cal-dow" role="columnheader">${d}</div>`).join("");
     for (let i = 0; i < first.getUTCDay(); i++) html += "<div></div>";
     for (let d = 1; d <= daysInMonth; d++) {
       const ds = ymd(view.y, view.m, d);
       const disabled = ds < today || ds > max || !dayOpen(ds);
       const cls = ["cal-day", ds === today ? "today" : "", ds === state.date ? "selected" : ""].join(" ");
       html += `<button type="button" class="${cls}" data-date="${ds}" ${disabled ? "disabled" : ""}
-        aria-label="${fmtDate(ds)}${disabled ? ", unavailable" : ""}" aria-pressed="${ds === state.date}">${d}</button>`;
+        aria-label="${fmtDate(ds)}${disabled ? " – " + tr("cal.unavailable") : ""}" aria-pressed="${ds === state.date}">${d}</button>`;
     }
     $("calGrid").innerHTML = html;
   }
 
   function renderSlots() {
     const box = $("slots");
-    if (!availKnown()) { box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">Checking availability…</p>`; return; }
-    if (!state.date) { box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">No free times in the next ${C.booking.daysAhead} days. Please message us on WhatsApp.</p>`; return; }
+    if (!availKnown()) { box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">${tr("slots.checking")}</p>`; return; }
+    if (!state.date) { box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">${tr("slots.none", { days: C.booking.daysAhead })}</p>`; return; }
     const slots = slotsFor(state.date);
     box.innerHTML = slots.length
       ? slots.map((s) => `<button type="button" class="slot ${s.time === state.time ? "selected" : ""}" data-time="${s.time}"
           ${s.available ? "" : "disabled"} aria-pressed="${s.time === state.time}"
-          ${s.full ? 'title="Fully booked"' : ""}>${fmtTime(s.time)}${s.full ? '<span class="sr-only"> (fully booked)</span>' : ""}</button>`).join("")
-      : `<p class="empty-note" style="grid-column:1/-1">We're closed on this day. Please pick another date.</p>`;
+          ${s.full ? `title="${tr("slots.full")}"` : ""}>${fmtTime(s.time)}${s.full ? `<span class="sr-only"> (${tr("slots.full")})</span>` : ""}</button>`).join("")
+      : `<p class="empty-note" style="grid-column:1/-1">${tr("slots.closed")}</p>`;
   }
 
   function summaryHTML(kind) {
     const s = service();
-    if (!s) return `<p class="side-empty">Choose a session to get started.</p>`;
+    if (!s) return `<p class="side-empty">${tr("side.empty")}</p>`;
     const row = (icon, label, value) => `<div class="summary-row">${ICONS[icon]}<span>${label}</span><span class="v">${value}</span></div>`;
     let html = `<div class="summary-top">
         <img src="${esc(s.image)}" alt="" />
-        <div><h3>${esc(s.name)}</h3><small>Single Session</small></div>
-        <span class="price">${kind === "full" ? "" : `${s.price} ${C.currency}`}</span>
+        <div><h3>${esc(nm(s))}</h3><small>${tr("sum.single")}</small></div>
+        <span class="price">${kind === "full" ? "" : L.money(s.price)}</span>
       </div>`;
-    html += row("calendar", "Date", state.date ? fmtDate(state.date) : "—");
-    html += row("clock", "Time", state.time ? fmtTime(state.time) : "—");
+    html += row("calendar", tr("sum.date"), state.date ? fmtDate(state.date) : "—");
+    html += row("clock", tr("sum.time"), state.time ? fmtTime(state.time) : "—");
     if (kind === "full") {
-      html += row("pin", "Location", `<span class="caps">Reset Society</span><small>${esc(C.city)}</small>`);
-      html += row("card", "Payment", state.pay === "online" ? "Paid Online" : "Pay at Location");
-      html += row("ticket", "Booking Reference", esc(state.ref || ""));
+      html += row("pin", tr("sum.location"), `<span class="caps">Reset Society</span><small>${esc(L.field(C, "city"))}</small>`);
+      html += row("card", tr("sum.payment"), state.pay === "online" ? tr("pay.paidOnline") : tr("pay.location"));
+      html += row("ticket", tr("sum.ref"), `<span class="ltr">${esc(state.ref || "")}</span>`);
     }
     return html;
   }
@@ -201,13 +201,13 @@
   function renderSide() {
     const s = service();
     $("sideSummary").innerHTML = summaryHTML("basic") +
-      (s ? `<div class="side-total"><span>Total</span><strong>${s.price} ${C.currency}</strong></div>` : "");
+      (s ? `<div class="side-total"><span>${tr("total")}</span><strong>${L.money(s.price)}</strong></div>` : "");
   }
 
   function renderBindings() {
     const s = service();
-    document.querySelectorAll('[data-bind="serviceName"]').forEach((el) => { el.textContent = s ? s.name : "Select a session"; });
-    document.querySelectorAll('[data-bind="price"]').forEach((el) => { el.textContent = s ? `${s.price} ${C.currency}` : ""; });
+    document.querySelectorAll('[data-bind="serviceName"]').forEach((el) => { el.textContent = s ? nm(s) : tr("dt.pick"); });
+    document.querySelectorAll('[data-bind="price"]').forEach((el) => { el.textContent = s ? L.money(s.price) : ""; });
     document.querySelectorAll('[data-summary="basic"]').forEach((el) => { el.innerHTML = summaryHTML("basic"); });
     document.querySelectorAll('[data-summary="full"]').forEach((el) => { el.innerHTML = summaryHTML("full"); });
     if (state.ref && s) $("waBtn").href = waLink(state.mode === "firebase" ? manageMessage() : bookingMessage());
@@ -224,15 +224,15 @@
 
   function renderPayment() {
     const opts = [
-      { id: "online", icon: "card", title: "Pay Online", sub: "Card / Apple Pay", enabled: !!C.payment.online },
-      { id: "location", icon: "wallet", title: "Pay at Location", sub: "Pay when you arrive", enabled: true }
+      { id: "online", icon: "card", title: tr("pay.online"), sub: tr("pay.onlineSub"), enabled: !!C.payment.online },
+      { id: "location", icon: "wallet", title: tr("pay.location"), sub: tr("pay.locationSub"), enabled: true }
     ];
     if (!C.payment.online && state.pay === "online") state.pay = "location";
     $("payOptions").innerHTML = opts.map((o) => `
       <input class="sr-only" type="radio" name="pay" id="pay-${o.id}" value="${o.id}" ${state.pay === o.id ? "checked" : ""} ${o.enabled ? "" : "disabled"} />
       <label class="pay-opt" for="pay-${o.id}">
         ${ICONS[o.icon].replace("<svg", '<svg class="ico"')}
-        <div><strong>${o.title}${o.enabled ? "" : '<span class="soon">Coming soon</span>'}</strong><span>${o.sub}</span></div>
+        <div><strong>${o.title}${o.enabled ? "" : `<span class="soon">${tr("pay.soon")}</span>`}</strong><span>${o.sub}</span></div>
         <span class="pay-dot"></span>
       </label>`).join("");
   }
@@ -266,7 +266,7 @@
     document.querySelectorAll(".step").forEach((el) => el.classList.toggle("active", el.dataset.step === step));
     $("flow").classList.toggle("no-side", step === "confirmed");
     $("progressBar").style.width = ((STEPS.indexOf(step) + 1) / STEPS.length * 100) + "%";
-    if (step !== "confirmed") document.title = ({ service: "Book a Session", datetime: "Date & Time", details: "Your Details", payment: "Payment" })[step] + " | Reset Society";
+    if (step !== "confirmed") document.title = tr(({ service: "book.pageTitle", datetime: "dt.pageTitle", details: "details.pageTitle", payment: "pay.pageTitle" })[step]) + " | Reset Society";
     window.scrollTo(0, 0);
     const h = document.querySelector(`.step[data-step="${step}"] h1`);
     if (h && document.activeElement && document.activeElement !== document.body) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
@@ -276,8 +276,8 @@
   function next() {
     const i = STEPS.indexOf(current());
     const step = current();
-    if (step === "service" && !service()) { toast("Please choose a session."); return; }
-    if (step === "datetime" && !state.time) { toast("Please choose a time."); return; }
+    if (step === "service" && !service()) { toast(tr("toast.chooseSession")); return; }
+    if (step === "datetime" && !state.time) { toast(tr("toast.chooseTime")); return; }
     go(STEPS[i + 1]);
   }
 
@@ -309,22 +309,22 @@
   function bookingMessage() {
     const s = service();
     return [
-      "Hello Reset Society, I'd like to book a session.",
+      tr("msg.book"),
       "",
-      `Booking: ${state.ref}`,
-      `Service: ${s.name} (${s.price} ${C.currency})`,
-      `Date: ${fmtDate(state.date)}`,
-      `Time: ${fmtTime(state.time)}`,
-      `Name: ${state.name}`,
-      `Phone: ${fullPhone()}`,
-      state.email ? `Email: ${state.email}` : null,
-      `Payment: ${state.pay === "online" ? "Paid online" : "Pay at location"}`
+      `${tr("msg.ref")}: ${state.ref}`,
+      `${tr("msg.service")}: ${nm(s)} (${L.money(s.price)})`,
+      `${tr("msg.date")}: ${fmtDate(state.date)}`,
+      `${tr("msg.time")}: ${fmtTime(state.time)}`,
+      `${tr("msg.name")}: ${state.name}`,
+      `${tr("msg.phone")}: ${fullPhone()}`,
+      state.email ? `${tr("msg.email")}: ${state.email}` : null,
+      `${tr("msg.payment")}: ${state.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`
     ].filter((l) => l !== null).join("\n");
   }
 
   function manageMessage() {
     const s = service();
-    return `Hello Reset Society, about my booking ${state.ref}: ${s.name}, ${fmtDate(state.date)} at ${fmtTime(state.time)}.`;
+    return tr("msg.manage", { ref: state.ref, service: nm(s), date: fmtDate(state.date), time: fmtTime(state.time) });
   }
 
   let confirming = false;
@@ -337,7 +337,7 @@
     const label = btn.innerHTML;
 
     // Before Firebase answers, Confirm waits for it (shows "Saving…").
-    confirming = true; btn.disabled = true; btn.textContent = "Saving…";
+    confirming = true; btn.disabled = true; btn.textContent = tr("saving");
     try {
       const db = await window.RS_DB;
       if (!db) {
@@ -361,12 +361,12 @@
     } catch (e) {
       state.ref = null; save();
       if (e.code === "slot-full") {
-        toast("Sorry, that time was just booked. Please choose another time.");
+        toast(tr("toast.slotTaken"));
         state.time = null; save();
         go("datetime");
       } else {
         console.error(e);
-        toast("We couldn't save your booking. Please try again, or message us on WhatsApp.");
+        toast(tr("toast.saveFailed"));
       }
     } finally {
       confirming = false; btn.disabled = false; btn.innerHTML = label;
@@ -375,13 +375,11 @@
 
   function renderConfirmMode() {
     const fb = state.mode === "firebase";
-    $("h-confirmed").textContent = fb ? "Booking Confirmed" : "Booking Received";
-    $("confirmSub").textContent = fb ? "Your session is booked" : "We'll confirm on WhatsApp";
-    $("waLabel").textContent = fb ? "Manage on WhatsApp" : "Send on WhatsApp";
-    $("confirmNote").innerHTML = fb
-      ? "Need to change or cancel? Message us on WhatsApp with your booking reference."
-      : "Your request opens in WhatsApp. Tap <strong>send</strong> so we receive it, and we'll confirm your slot shortly.";
-    document.title = (fb ? "Booking Confirmed" : "Booking Received") + " | Reset Society";
+    $("h-confirmed").textContent = tr(fb ? "done.fbTitle" : "done.waTitle");
+    $("confirmSub").textContent = tr(fb ? "done.fbSub" : "done.waSub");
+    $("waLabel").textContent = tr(fb ? "done.fbWa" : "done.waWa");
+    $("confirmNote").innerHTML = tr(fb ? "done.fbNote" : "done.waNote");
+    document.title = tr(fb ? "done.fbTitle" : "done.waTitle") + " | Reset Society";
   }
 
   function downloadICS() {
@@ -398,10 +396,10 @@
       `DTSTAMP:${f(new Date())}`,
       `DTSTART:${f(start)}`,
       `DTEND:${f(end)}`,
-      `SUMMARY:${s.name} – Reset Society`,
-      `LOCATION:Reset Society\\, ${C.city}\\, ${C.country}`,
-      `DESCRIPTION:Booking reference ${state.ref}. Please arrive 10 minutes early.`,
-      "BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY", "DESCRIPTION:Reset Society session in 1 hour", "END:VALARM",
+      `SUMMARY:${nm(s)} – Reset Society`,
+      `LOCATION:Reset Society\\, ${L.field(C, "city")}\\, ${L.field(C, "country")}`,
+      `DESCRIPTION:${tr("ics.desc", { ref: state.ref })}`,
+      "BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY", `DESCRIPTION:${tr("ics.alarm")}`, "END:VALARM",
       "END:VEVENT", "END:VCALENDAR"
     ];
     const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });

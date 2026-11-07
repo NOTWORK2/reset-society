@@ -12,14 +12,17 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/admin.css" />
+  <script src="js/i18n.js"></script>
 </head>
 <body class="admin-page">
+  <span hidden data-i18n-title="admin.pageTitle"></span>
   <header class="site-header is-solid">
     <div class="container">
       <a class="brand-inline" href="index.html">Reset Society</a>
-      <div class="admin-user" id="userBox" hidden>
-        <span id="userEmail"></span>
-        <button class="btn btn-outline btn-sm" type="button" id="signOutBtn">Sign out</button>
+      <div class="admin-user">
+        <span id="userEmail" class="ltr" hidden></span>
+        <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
+        <button class="btn btn-outline btn-sm" type="button" id="signOutBtn" data-i18n="admin.signOut" hidden>Sign out</button>
       </div>
     </div>
   </header>
@@ -27,25 +30,25 @@
   <main class="admin-main">
     <!-- Status messages (loading / not configured) -->
     <section class="admin-center" id="statusView">
-      <p class="muted" id="statusText">Loading…</p>
+      <p class="muted" id="statusText" data-i18n="admin.loading">Loading…</p>
     </section>
 
     <!-- Login -->
     <section class="admin-center" id="loginView" hidden>
       <form class="login-card" id="loginForm" novalidate>
-        <h1>Admin</h1>
-        <p class="muted">Sign in to manage bookings.</p>
+        <h1 data-i18n="admin.signInTitle">Admin</h1>
+        <p class="muted" data-i18n="admin.signInSub">Sign in to manage bookings.</p>
         <div class="field">
-          <label for="email">Email</label>
-          <input class="input" id="email" type="email" autocomplete="username" required />
+          <label for="email" data-i18n="admin.email">Email</label>
+          <input class="input" id="email" type="email" autocomplete="username" dir="ltr" required />
         </div>
         <div class="field">
-          <label for="password">Password</label>
-          <input class="input" id="password" type="password" autocomplete="current-password" required />
+          <label for="password" data-i18n="admin.password">Password</label>
+          <input class="input" id="password" type="password" autocomplete="current-password" dir="ltr" required />
         </div>
         <p class="form-error" id="loginError" role="alert"></p>
-        <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Sign in</button>
-        <button class="link-btn" type="button" id="forgotBtn">Forgot password?</button>
+        <button class="btn btn-primary btn-block" type="submit" id="loginBtn" data-i18n="admin.signIn">Sign in</button>
+        <button class="link-btn" type="button" id="forgotBtn" data-i18n="admin.forgot">Forgot password?</button>
       </form>
     </section>
 
@@ -55,31 +58,31 @@
         <div class="dash-head">
           <div>
             <p class="eyebrow caps" id="todayLabel"></p>
-            <h1>Bookings</h1>
+            <h1 data-i18n="admin.bookings">Bookings</h1>
           </div>
-          <button class="btn btn-primary" type="button" id="newBookingBtn">+ New booking</button>
+          <button class="btn btn-primary" type="button" id="newBookingBtn" data-i18n="admin.newBooking">+ New booking</button>
         </div>
 
         <div class="stats">
-          <div class="stat"><span>Today</span><strong id="statToday">0</strong></div>
-          <div class="stat"><span>Next 7 days</span><strong id="statWeek">0</strong></div>
-          <div class="stat"><span>Today's revenue</span><strong id="statRevenue">0</strong></div>
+          <div class="stat"><span data-i18n="admin.statToday">Today</span><strong id="statToday">0</strong></div>
+          <div class="stat"><span data-i18n="admin.statWeek">Next 7 days</span><strong id="statWeek">0</strong></div>
+          <div class="stat"><span data-i18n="admin.statRevenue">Today's revenue</span><strong id="statRevenue">0</strong></div>
         </div>
 
         <div class="tabs" role="tablist">
-          <button class="tab active" role="tab" aria-selected="true" data-tab="bookings">Bookings</button>
-          <button class="tab" role="tab" aria-selected="false" data-tab="schedule">Schedule</button>
+          <button class="tab active" role="tab" aria-selected="true" data-tab="bookings" data-i18n="admin.tabBookings">Bookings</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="schedule" data-i18n="admin.tabSchedule">Schedule</button>
         </div>
 
         <!-- Bookings tab -->
         <div class="tab-panel" id="tab-bookings">
           <div class="toolbar">
-            <div class="chips" role="group" aria-label="Filter">
-              <button class="chip active" data-filter="today">Today</button>
-              <button class="chip" data-filter="upcoming">Upcoming</button>
-              <button class="chip" data-filter="past">Past</button>
+            <div class="chips" role="group" data-i18n-aria="admin.filter">
+              <button class="chip active" data-filter="today" data-i18n="admin.fToday">Today</button>
+              <button class="chip" data-filter="upcoming" data-i18n="admin.fUpcoming">Upcoming</button>
+              <button class="chip" data-filter="past" data-i18n="admin.fPast">Past</button>
             </div>
-            <input class="input search" id="search" type="search" placeholder="Search name, phone or RS-…" aria-label="Search bookings" />
+            <input class="input search" id="search" type="search" data-i18n-placeholder="admin.search" data-i18n-aria="admin.searchAria" />
           </div>
           <div id="bookingList" aria-live="polite"></div>
         </div>
@@ -88,13 +91,13 @@
         <div class="tab-panel" id="tab-schedule" hidden>
           <div class="toolbar">
             <div class="day-nav">
-              <button class="cal-nav" type="button" id="dayPrev" aria-label="Previous day"><span data-icon="chevL" style="display:contents"></span></button>
-              <input class="input" type="date" id="dayPicker" aria-label="Day" />
-              <button class="cal-nav" type="button" id="dayNext" aria-label="Next day"><span data-icon="chevR" style="display:contents"></span></button>
+              <button class="cal-nav" type="button" id="dayPrev" data-i18n-aria="admin.dayPrev"><span data-icon="chevL" style="display:contents"></span></button>
+              <input class="input" type="date" id="dayPicker" data-i18n-aria="admin.day" />
+              <button class="cal-nav" type="button" id="dayNext" data-i18n-aria="admin.dayNext"><span data-icon="chevR" style="display:contents"></span></button>
             </div>
-            <label class="check day-closed"><input type="checkbox" id="dayClosed" /> <span>Closed all day</span></label>
+            <label class="check day-closed"><input type="checkbox" id="dayClosed" /> <span data-i18n="admin.closedAllDay">Closed all day</span></label>
           </div>
-          <p class="muted small">Block a time to stop online bookings for it (e.g. maintenance or private sessions).</p>
+          <p class="muted small" data-i18n="admin.schHelp">Block a time to stop online bookings for it (e.g. maintenance or private sessions).</p>
           <div class="schedule" id="schedule"></div>
         </div>
       </div>
@@ -104,33 +107,33 @@
   <!-- New booking (phone / walk-in) -->
   <dialog class="policy" id="newDialog" aria-labelledby="newTitle">
     <form class="policy-inner" id="newForm" novalidate>
-      <h2 id="newTitle">New booking</h2>
+      <h2 id="newTitle" data-i18n="nb.title">New booking</h2>
       <div class="field">
-        <label for="nbService">Service</label>
+        <label for="nbService" data-i18n="nb.service">Service</label>
         <select class="input" id="nbService" required></select>
       </div>
       <div class="grid-2">
         <div class="field">
-          <label for="nbDate">Date</label>
+          <label for="nbDate" data-i18n="nb.date">Date</label>
           <input class="input" id="nbDate" type="date" required />
         </div>
         <div class="field">
-          <label for="nbTime">Time</label>
+          <label for="nbTime" data-i18n="nb.time">Time</label>
           <select class="input" id="nbTime" required></select>
         </div>
       </div>
       <div class="field">
-        <label for="nbName">Name</label>
+        <label for="nbName" data-i18n="nb.name">Name</label>
         <input class="input" id="nbName" required maxlength="100" />
       </div>
       <div class="field">
-        <label for="nbPhone">Phone</label>
-        <input class="input" id="nbPhone" type="tel" required maxlength="30" placeholder="+971 50 123 4567" />
+        <label for="nbPhone" data-i18n="nb.phone">Phone</label>
+        <input class="input" id="nbPhone" type="tel" dir="ltr" required maxlength="30" placeholder="+971 50 123 4567" />
       </div>
       <p class="form-error" id="newError" role="alert"></p>
       <div class="grid-2">
-        <button class="btn btn-outline" type="button" id="newCancel">Cancel</button>
-        <button class="btn btn-primary" type="submit" id="newSave">Save booking</button>
+        <button class="btn btn-outline" type="button" id="newCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="newSave" data-i18n="nb.save">Save booking</button>
       </div>
     </form>
   </dialog>

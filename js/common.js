@@ -34,7 +34,7 @@
       if (!el.dataset.iconDone) { el.insertAdjacentHTML("afterbegin", ICONS[el.dataset.icon] || ""); el.dataset.iconDone = "1"; }
     });
     root.querySelectorAll("[data-wa]").forEach((el) => {
-      el.href = waLink(el.dataset.wa || "Hello Reset Society, I'd like to ask about a session.");
+      el.href = waLink(el.dataset.wa || (window.RS_I18N ? window.RS_I18N.t("wa.hello") : "Hello Reset Society, I'd like to ask about a session."));
       el.target = "_blank"; el.rel = "noopener";
     });
     root.querySelectorAll("[data-ig]").forEach((el) => { el.href = C.instagram; el.target = "_blank"; el.rel = "noopener"; });

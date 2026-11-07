@@ -1,5 +1,6 @@
 /*
  * Reset Society — site settings.
+ * Fields ending in _ar are the Arabic versions shown when the site is in Arabic.
  * Everything the client may want to change lives here (prices, times, contact).
  * Values marked TODO are placeholders: confirm them with the client before launch.
  */
@@ -7,7 +8,9 @@ window.RS_CONFIG = {
   name: "Reset Society",
   tagline: "Wellness & Recovery Studio",
   city: "Umm Al Quwain",
+  city_ar: "أم القيوين",
   country: "UAE",
+  country_ar: "الإمارات",
 
   // TODO: client's real WhatsApp number, digits only with country code (no +, no spaces).
   whatsapp: "971500000000",
@@ -17,8 +20,8 @@ window.RS_CONFIG = {
 
   // TODO: confirm opening hours with the client.
   hours: [
-    ["Saturday – Thursday", "9:00 AM – 7:00 PM"],
-    ["Friday", "9:00 AM – 7:00 PM"]
+    { days: "Saturday – Thursday", days_ar: "السبت – الخميس", time: "9:00 AM – 7:00 PM", time_ar: "9:00 ص – 7:00 م" },
+    { days: "Friday", days_ar: "الجمعة", time: "9:00 AM – 7:00 PM", time_ar: "9:00 ص – 7:00 م" }
   ],
 
   currency: "AED",
@@ -42,6 +45,10 @@ window.RS_CONFIG = {
     {
       id: "cold-plunge",
       name: "Cold Plunge",
+      name_ar: "الغطس البارد",
+      duration_ar: "10 إلى 15 دقيقة",
+      short_ar: "يسرّع التعافي ويخفّف الالتهاب.",
+      long_ar: "غطس بارد مدروس يهدّئ الالتهاب ويزيد التركيز ويمنحك طاقة متجددة.",
       price: 50,
       duration: "10–15 min",
       minutes: 15,
@@ -53,6 +60,10 @@ window.RS_CONFIG = {
     {
       id: "sauna",
       name: "Sauna",
+      name_ar: "الساونا",
+      duration_ar: "20 إلى 30 دقيقة",
+      short_ar: "استرخاء وتعافٍ وتحسين للدورة الدموية.",
+      long_ar: "حرارة جافة عميقة ترخي العضلات المشدودة وتحسّن الدورة الدموية وتهدّئ الذهن.",
       price: 50,
       duration: "20–30 min",
       minutes: 30,
@@ -64,6 +75,10 @@ window.RS_CONFIG = {
     {
       id: "compression-boots",
       name: "Compression Boots",
+      name_ar: "أحذية الضغط",
+      duration_ar: "20 إلى 30 دقيقة",
+      short_ar: "يخفّف التورّم ويعزّز التعافي.",
+      long_ar: "ضغط هوائي متدرّج ينعش الساقين المتعبتين ويخفّف التورّم ويسرّع التعافي.",
       price: 40,
       duration: "20–30 min",
       minutes: 30,
@@ -75,6 +90,10 @@ window.RS_CONFIG = {
     {
       id: "full-recovery",
       name: "Full Recovery",
+      name_ar: "التعافي الكامل",
+      duration_ar: "40 إلى 60 دقيقة",
+      short_ar: "ساونا + غطس بارد + أحذية الضغط.",
+      long_ar: "الطقس الكامل: حرارة وبرودة وضغط في جلسة واحدة لتجديد شامل.",
       price: 120,
       duration: "40–60 min",
       minutes: 60,

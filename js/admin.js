@@ -2,6 +2,8 @@
 (function () {
   const C = window.RS_CONFIG;
   const { esc, toast, waLink } = window.RS;
+  const L = window.RS_I18N;
+  const tr = L.t;
   const $ = (id) => document.getElementById(id);
 
   /* ---------- date helpers (studio time zone) ---------- */
@@ -14,17 +16,22 @@
   }
   const toUTC = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
   const addDays = (s, n) => { const t = toUTC(s); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
-  const fmtDate = (s) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(toUTC(s));
-  const fmtLong = (s) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toUTC(s));
-  function fmtTime(t) { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}:${pad(m)} ${h >= 12 ? "PM" : "AM"}`; }
+  const fmtDate = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(toUTC(s));
+  const fmtLong = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toUTC(s));
+  const fmtTime = (hhmm) => L.time(hhmm);
   const svc = (id) => C.services.find((s) => s.id === id) || { name: id, capacity: 1 };
+  const svcName = (id) => L.field(svc(id), "name");
 
   const STATUS = {
-    confirmed: { label: "Confirmed", cls: "st-confirmed" },
-    completed: { label: "Done", cls: "st-done" },
-    "no-show": { label: "No-show", cls: "st-noshow" },
-    cancelled: { label: "Cancelled", cls: "st-cancelled" }
+    confirmed: { label: tr("st.confirmed"), cls: "st-confirmed" },
+    completed: { label: tr("st.completed"), cls: "st-done" },
+    "no-show": { label: tr("st.no-show"), cls: "st-noshow" },
+    cancelled: { label: tr("st.cancelled"), cls: "st-cancelled" }
   };
+  function showUser(user) {
+    $("userEmail").hidden = !user; $("signOutBtn").hidden = !user;
+    $("userEmail").textContent = (user && user.email) || "";
+  }
 
   let DB = null;
   let upcoming = [], past = [], filter = "today", search = "";
@@ -41,19 +48,19 @@
   async function start() {
     DB = await window.RS_DB;
     if (!DB) {
-      status("Firebase isn't connected yet. Add the project settings to <code>js/firebase-config.js</code> (see README).");
+      status(tr("admin.notConfigured"));
       return;
     }
     DB.onAuth(async (user) => {
       stopWatching();
-      if (!user || user.isAnonymous) { $("userBox").hidden = true; view("loginView"); return; }
-      status("Checking access…");
+      if (!user || user.isAnonymous) { showUser(null); view("loginView"); return; }
+      status(tr("admin.checking"));
       if (!(await DB.isAdmin(user))) {
-        $("userBox").hidden = false; $("userEmail").textContent = user.email || "";
-        status(`<strong>${esc(user.email || "This account")}</strong> is not an admin.<br>Add its UID to the <code>admins</code> collection in Firestore (see README).<br><small class="muted">UID: ${esc(user.uid)}</small>`);
+        showUser(user);
+        status(`${tr("admin.notAdmin", { email: esc(user.email || tr("admin.thisAccount")) })}<br><small class="muted ltr">UID: ${esc(user.uid)}</small>`);
         return;
       }
-      $("userBox").hidden = false; $("userEmail").textContent = user.email || "";
+      showUser(user);
       view("dashView");
       startWatching();
     });
@@ -63,19 +70,19 @@
     e.preventDefault();
     const email = $("email").value.trim(), pw = $("password").value;
     $("loginError").textContent = "";
-    if (!email || !pw) { $("loginError").textContent = "Enter your email and password."; return; }
+    if (!email || !pw) { $("loginError").textContent = tr("admin.errBoth"); return; }
     $("loginBtn").disabled = true;
     try { await DB.signIn(email, pw); $("password").value = ""; }
     catch (err) {
-      $("loginError").textContent = /invalid|wrong|not-found|credential/.test(err.code || "") ? "Wrong email or password." :
-        err.code === "auth/too-many-requests" ? "Too many attempts. Try again in a few minutes." : "Couldn't sign in. Check your connection.";
+      $("loginError").textContent = /invalid|wrong|not-found|credential/.test(err.code || "") ? tr("admin.errWrong") :
+        err.code === "auth/too-many-requests" ? tr("admin.errMany") : tr("admin.errConn");
     } finally { $("loginBtn").disabled = false; }
   });
   $("forgotBtn").addEventListener("click", async () => {
     const email = $("email").value.trim();
-    if (!email) { $("loginError").textContent = "Enter your email first, then tap Forgot password."; return; }
-    try { await DB.resetPassword(email); toast("Password reset email sent."); }
-    catch (e) { $("loginError").textContent = "Couldn't send the reset email."; }
+    if (!email) { $("loginError").textContent = tr("admin.errEmailFirst"); return; }
+    try { await DB.resetPassword(email); toast(tr("admin.resetSent")); }
+    catch (e) { $("loginError").textContent = tr("admin.resetFailed"); }
   });
   $("signOutBtn").addEventListener("click", () => DB && DB.signOut());
 
@@ -86,7 +93,7 @@
     firstSnapshot = true;
     unsubUpcoming = DB.watchBookings({ from: t }, (rows) => {
       if (!firstSnapshot) {
-        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(`New booking: ${b.name} · ${svc(b.service).name} · ${fmtDate(b.date)} ${fmtTime(b.time)}`));
+        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(tr("admin.newToast", { name: b.name, service: svcName(b.service), date: fmtDate(b.date), time: fmtTime(b.time) })));
       }
       knownRefs = new Set(rows.map((b) => b.ref));
       firstSnapshot = false;
@@ -101,7 +108,7 @@
     unsubUpcoming = unsubPast = unsubDay = unsubSettings = null;
     upcoming = []; past = [];
   }
-  function onWatchError(e) { console.error(e); toast("Lost connection to bookings. Refresh the page."); }
+  function onWatchError(e) { console.error(e); toast(tr("admin.lost")); }
 
   function watchPast() {
     if (unsubPast) return;
@@ -115,8 +122,8 @@
     const todays = active.filter((b) => b.date === t);
     $("statToday").textContent = todays.length;
     $("statWeek").textContent = active.filter((b) => b.date <= week).length;
-    $("statRevenue").textContent = `${todays.filter((b) => b.status !== "no-show").reduce((sum, b) => sum + (b.price || 0), 0)} ${C.currency}`;
-    document.title = (todays.length ? `(${todays.length}) ` : "") + "Admin | Reset Society";
+    $("statRevenue").textContent = L.money(todays.filter((b) => b.status !== "no-show").reduce((sum, b) => sum + (b.price || 0), 0));
+    document.title = (todays.length ? `(${todays.length}) ` : "") + tr("admin.pageTitle") + " | Reset Society";
   }
 
   function rowsForFilter() {
@@ -132,7 +139,7 @@
     const rows = rowsForFilter();
     const box = $("bookingList");
     if (!rows.length) {
-      box.innerHTML = `<p class="empty">${search ? "No bookings match your search." : filter === "today" ? "No bookings today." : filter === "past" ? "No past bookings." : "No upcoming bookings."}</p>`;
+      box.innerHTML = `<p class="empty">${tr(search ? "admin.emptySearch" : filter === "today" ? "admin.emptyToday" : filter === "past" ? "admin.emptyPast" : "admin.emptyUpcoming")}</p>`;
       return;
     }
     let html = "", lastDate = null;
@@ -140,25 +147,25 @@
       if (b.date !== lastDate) { html += `<h2 class="day-title">${fmtLong(b.date)}</h2>`; lastDate = b.date; }
       const st = STATUS[b.status] || STATUS.confirmed;
       const phoneDigits = String(b.phone || "").replace(/\D/g, "");
-      const msg = `Hello ${b.name}, this is Reset Society about your booking ${b.ref}: ${svc(b.service).name} on ${fmtDate(b.date)} at ${fmtTime(b.time)}.`;
+      const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: svcName(b.service), date: fmtDate(b.date), time: fmtTime(b.time) });
       html += `
         <article class="bk ${b.status === "cancelled" ? "is-cancelled" : ""}">
           <div class="bk-time">${fmtTime(b.time)}</div>
           <div class="bk-main">
             <div class="bk-top"><strong>${esc(b.name)}</strong><span class="badge ${st.cls}">${st.label}</span></div>
-            <div class="bk-meta">${esc(b.serviceName || svc(b.service).name)} · ${esc(String(b.price ?? ""))} ${esc(b.currency || C.currency)} · ${b.pay === "online" ? "Paid online" : "Pay at location"}${b.source ? " · added by admin" : ""}</div>
+            <div class="bk-meta">${esc(svcName(b.service))} · ${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
             <div class="bk-meta">
-              <a href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
-              ${b.email ? ` · <a href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>
+              <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
+              ${b.email ? ` · <a class="ltr" href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>
             </div>
           </div>
           <div class="bk-actions">
-            ${phoneDigits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${phoneDigits}?text=${encodeURIComponent(msg)}">WhatsApp</a>` : ""}
+            ${phoneDigits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${phoneDigits}?text=${encodeURIComponent(msg)}">${tr("act.whatsapp")}</a>` : ""}
             ${b.status === "confirmed" ? `
-              <button class="btn btn-outline btn-sm" data-act="completed" data-ref="${esc(b.ref)}">Done</button>
-              <button class="btn btn-outline btn-sm" data-act="no-show" data-ref="${esc(b.ref)}">No-show</button>
-              <button class="btn btn-danger btn-sm" data-act="cancelled" data-ref="${esc(b.ref)}">Cancel</button>`
-              : b.status !== "cancelled" ? `<button class="btn btn-outline btn-sm" data-act="confirmed" data-ref="${esc(b.ref)}">Undo</button>` : ""}
+              <button class="btn btn-outline btn-sm" data-act="completed" data-ref="${esc(b.ref)}">${tr("act.done")}</button>
+              <button class="btn btn-outline btn-sm" data-act="no-show" data-ref="${esc(b.ref)}">${tr("act.noshow")}</button>
+              <button class="btn btn-danger btn-sm" data-act="cancelled" data-ref="${esc(b.ref)}">${tr("act.cancel")}</button>`
+              : b.status !== "cancelled" ? `<button class="btn btn-outline btn-sm" data-act="confirmed" data-ref="${esc(b.ref)}">${tr("act.undo")}</button>` : ""}
           </div>
         </article>`;
     });
@@ -169,10 +176,10 @@
     const btn = e.target.closest("[data-act]"); if (!btn) return;
     const b = upcoming.concat(past).find((x) => x.ref === btn.dataset.ref); if (!b) return;
     const act = btn.dataset.act;
-    if (act === "cancelled" && !confirm(`Cancel ${b.name}'s booking (${b.ref})? The time becomes free for others.`)) return;
+    if (act === "cancelled" && !confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
     btn.disabled = true;
-    try { await DB.setStatus(b, act); toast(act === "cancelled" ? "Booking cancelled. The time is free again." : "Updated."); }
-    catch (err) { console.error(err); toast("Couldn't update the booking."); btn.disabled = false; }
+    try { await DB.setStatus(b, act); toast(tr(act === "cancelled" ? "admin.cancelled" : "admin.updated")); }
+    catch (err) { console.error(err); toast(tr("admin.updateFailed")); btn.disabled = false; }
   });
 
   document.querySelectorAll("[data-filter]").forEach((c) => c.addEventListener("click", () => {
@@ -204,7 +211,7 @@
     $("dayClosed").checked = closed;
     const weekdayClosed = C.booking.closedWeekdays.includes(toUTC(scheduleDay).getUTCDay());
     const byRef = new Map(upcoming.concat(past).map((b) => [b.ref, b]));
-    let html = `<div class="sch-row sch-head"><span>Time</span>${C.services.map((s) => `<span>${esc(s.name)}</span>`).join("")}<span></span></div>`;
+    let html = `<div class="sch-row sch-head"><span>${tr("admin.schTime")}</span>${C.services.map((s) => `<span>${esc(L.field(s, "name"))}</span>`).join("")}<span></span></div>`;
     C.booking.slots.forEach((t) => {
       const locks = dayLocks.filter((l) => l.time === t);
       const blocked = locks.some((l) => l.bookingId === "blocked");
@@ -213,13 +220,13 @@
         const taken = locks.filter((l) => l.service === s.id);
         const names = taken.filter((l) => l.bookingId !== "blocked").map((l) => (byRef.get(l.bookingId) || {}).name || l.bookingId);
         const cell = names.length ? `<span class="cell booked">${names.map(esc).join(", ")}</span>`
-          : taken.length ? `<span class="cell blocked">Blocked</span>`
-          : `<span class="cell free">Free${s.capacity > 1 ? ` · ${s.capacity}` : ""}</span>`;
-        html += `<span data-label="${esc(s.name)}">${cell}</span>`;
+          : taken.length ? `<span class="cell blocked">${tr("admin.blocked")}</span>`
+          : `<span class="cell free">${tr("admin.free")}${s.capacity > 1 ? ` · ${s.capacity}` : ""}</span>`;
+        html += `<span data-label="${esc(L.field(s, "name"))}">${cell}</span>`;
       });
-      html += `<span class="sch-act"><button class="btn btn-outline btn-sm" data-slot="${t}" data-block="${blocked ? "0" : "1"}">${blocked ? "Unblock" : "Block"}</button></span></div>`;
+      html += `<span class="sch-act"><button class="btn btn-outline btn-sm" data-slot="${t}" data-block="${blocked ? "0" : "1"}">${tr(blocked ? "admin.unblock" : "admin.block")}</button></span></div>`;
     });
-    if (weekdayClosed) html = `<p class="muted small">This weekday is closed in js/config.js.</p>` + html;
+    if (weekdayClosed) html = `<p class="muted small">${tr("admin.weekdayClosed")}</p>` + html;
     $("schedule").innerHTML = html;
   }
 
@@ -229,11 +236,11 @@
     try {
       if (b.dataset.block === "1") await DB.blockSlot(scheduleDay, b.dataset.slot, dayLocks);
       else await DB.unblockSlot(b.dataset.slot, dayLocks);
-    } catch (err) { console.error(err); toast("Couldn't update this time."); b.disabled = false; }
+    } catch (err) { console.error(err); toast(tr("admin.slotFailed")); b.disabled = false; }
   });
   $("dayClosed").addEventListener("change", async (e) => {
-    try { await DB.setDayClosed(scheduleDay, e.target.checked); toast(e.target.checked ? "Day closed for online booking." : "Day opened."); }
-    catch (err) { console.error(err); toast("Couldn't update the day."); e.target.checked = !e.target.checked; }
+    try { await DB.setDayClosed(scheduleDay, e.target.checked); toast(tr(e.target.checked ? "admin.dayClosedToast" : "admin.dayOpenedToast")); }
+    catch (err) { console.error(err); toast(tr("admin.dayFailed")); e.target.checked = !e.target.checked; }
   });
   $("dayPicker").addEventListener("change", (e) => { if (e.target.value) { scheduleDay = e.target.value; watchScheduleDay(); } });
   $("dayPrev").addEventListener("click", () => { scheduleDay = addDays(scheduleDay, -1); watchScheduleDay(); });
@@ -241,7 +248,7 @@
 
   /* ---------- new booking (phone / walk-in) ---------- */
   const dlg = $("newDialog");
-  $("nbService").innerHTML = C.services.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} · ${s.price} ${C.currency}</option>`).join("");
+  $("nbService").innerHTML = C.services.map((s) => `<option value="${esc(s.id)}">${esc(L.field(s, "name"))} · ${L.money(s.price)}</option>`).join("");
   $("nbTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}">${fmtTime(t)}</option>`).join("");
   $("newBookingBtn").addEventListener("click", () => {
     $("nbDate").value = today(); $("nbDate").min = today();
@@ -257,14 +264,14 @@
       date: $("nbDate").value, time: $("nbTime").value,
       name: $("nbName").value.trim(), phone: $("nbPhone").value.trim(), email: "", pay: "location", source: "admin"
     };
-    if (!b.date || !b.name || b.phone.replace(/\D/g, "").length < 7) { $("newError").textContent = "Fill in the date, name and a valid phone number."; return; }
+    if (!b.date || !b.name || b.phone.replace(/\D/g, "").length < 7) { $("newError").textContent = tr("nb.errFill"); return; }
     $("newSave").disabled = true;
     try {
       const ref = await DB.createBooking(b, { asAdmin: true });
       dlg.close(); $("newForm").reset();
-      toast(`Booking ${ref} saved.`);
+      toast(tr("nb.saved", { ref }));
     } catch (err) {
-      $("newError").textContent = err.code === "slot-full" ? "That time is already full for this service." : "Couldn't save the booking.";
+      $("newError").textContent = tr(err.code === "slot-full" ? "nb.errFull" : "nb.errSave");
       console.error(err);
     } finally { $("newSave").disabled = false; }
   });

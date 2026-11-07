@@ -14,7 +14,7 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
 
 .admin-center { min-height: 60vh; display: grid; place-items: center; text-align: center; padding: 0 20px; }
 .login-card {
-  width: 100%; max-width: 400px; text-align: left; background: var(--card); border: 1px solid var(--line);
+  width: 100%; max-width: 400px; text-align: start; background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius-lg); padding: 30px 26px; box-shadow: var(--shadow);
 }
 .login-card h1 { font-family: var(--serif); font-weight: 400; font-size: 40px; margin: 0; }
@@ -78,7 +78,7 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
 .sch-row > span[data-label]::before { content: attr(data-label); color: var(--muted); }
 .cell.free { color: var(--ok); }
 .cell.blocked { color: #8a4a1c; }
-.cell.booked { font-weight: 500; text-align: right; }
+.cell.booked { font-weight: 500; text-align: end; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 #newDialog select.input { appearance: auto; }
@@ -91,5 +91,5 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
   .sch-time, .sch-act { grid-column: auto; grid-row: auto; }
   .sch-row > span[data-label] { grid-column: auto; display: block; }
   .sch-row > span[data-label]::before { content: none; }
-  .cell.booked { text-align: left; }
+  .cell.booked { text-align: start; }
 }
