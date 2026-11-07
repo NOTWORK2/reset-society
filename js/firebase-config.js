@@ -21,7 +21,9 @@ window.RS_FIREBASE = {
   if (!cfg || !cfg.projectId) { resolve(null); return; }
   const s = document.createElement("script");
   s.type = "module";
-  s.src = "js/firebase.js";
+  // Same ?v= version as this file, so a fresh page never runs an old cached copy.
+  const v = document.currentScript ? new URL(document.currentScript.src).search : "";
+  s.src = "js/firebase.js" + v;
   s.onerror = () => resolve(null);
   document.head.appendChild(s);
   setTimeout(() => resolve(null), 12000); // never leave the page waiting forever
