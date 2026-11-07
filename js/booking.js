@@ -5,6 +5,43 @@
   const L = window.RS_I18N;
   const tr = L.t;
   const nm = (s) => L.field(s, "name");
+  const P = window.RS_PLANS;
+
+  /* Full Recovery: "Single Session" (normal booking) or "Membership" (join a monthly plan). */
+  let frMode = "session", frPlanId = null;
+  function frModeHTML() {
+    const list = P.plansOf("memberships");
+    if (!list.length) return "";
+    if (!list.some((p) => p.id === frPlanId)) frPlanId = P.defaultChoice(list);
+    return `<div class="fr-mode" id="frMode" hidden>
+      <p class="fr-label" id="frLabel">${tr("fr.modeLabel")}</p>
+      <div class="seg" role="group" aria-labelledby="frLabel">
+        <button type="button" class="seg-btn" data-fr-mode="session" aria-pressed="false">${tr("fr.session")}</button>
+        <button type="button" class="seg-btn" data-fr-mode="membership" aria-pressed="false">${tr("fr.membership")}</button>
+      </div>
+      <div id="frPlans" hidden>
+        <div class="plan-list" role="radiogroup" aria-label="${esc(tr("plans.membershipsTitle"))}">${P.cardsHTML(list, "memberships", frPlanId, "frplan")}</div>
+        <ul class="benefit-grid fr-benefits">${P.benefitsHTML("memberships")}</ul>
+        <a class="fr-more" href="memberships.html#packs">${tr("fr.morePacks")} <span data-icon="arrow" style="display:contents">${ICONS.arrow}</span></a>
+      </div>
+    </div>`;
+  }
+  function updateFrMode() {
+    const box = $("frMode");
+    const isFr = !!box && state.serviceId === P.serviceId();
+    if (box) box.hidden = !isFr;
+    const member = isFr && frMode === "membership";
+    if (box) {
+      box.querySelectorAll("[data-fr-mode]").forEach((b) => {
+        const on = b.dataset.frMode === frMode;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+      $("frPlans").hidden = !member;
+    }
+    $("svcNextLabel").textContent = tr(member ? "plans.joinMembership" : "continue");
+    return member;
+  }
   const STEPS = ["service", "datetime", "details", "payment", "confirmed"];
   const STORE_KEY = "rs-booking";
   const $ = (id) => document.getElementById(id);
@@ -126,7 +163,7 @@
   /* ---------- rendering ---------- */
   function renderServices() {
     const list = $("serviceList");
-    list.querySelectorAll("input, label").forEach((el) => el.remove());
+    list.querySelectorAll("input, label, .fr-mode").forEach((el) => el.remove());
     list.insertAdjacentHTML("beforeend", activeServices().map((s) => `
       <input class="sr-only" type="radio" name="service" id="svc-${esc(s.id)}" value="${esc(s.id)}" ${state.serviceId === s.id ? "checked" : ""} />
       <label class="service-opt" for="svc-${esc(s.id)}">
@@ -137,8 +174,9 @@
           <p>${esc(L.field(s, "short"))}</p>
         </div>
         <span class="radio">${ICONS.check}</span>
-      </label>`).join(""));
+      </label>${s.id === P.serviceId() ? frModeHTML() : ""}`).join(""));
     RS.fillMedia(list);
+    updateFrMode();
   }
 
   function renderPolicy() {
@@ -282,6 +320,10 @@
     const i = STEPS.indexOf(current());
     const step = current();
     if (step === "service" && !service()) { toast(tr("toast.chooseSession")); return; }
+    if (step === "service" && updateFrMode()) {
+      P.openJoin(P.plansOf("memberships").find((p) => p.id === frPlanId), "memberships");
+      return;
+    }
     if (step === "datetime" && !state.time) { toast(tr("toast.chooseTime")); return; }
     go(STEPS[i + 1]);
   }
@@ -418,9 +460,15 @@
   /* ---------- events ---------- */
   function bind() {
     $("serviceList").addEventListener("change", (e) => {
+      if (e.target.name === "frplan") { frPlanId = e.target.value; return; }
       if (e.target.name !== "service") return;
       state.serviceId = e.target.value;
-      save(); renderBindings();
+      save(); renderBindings(); updateFrMode();
+    });
+    $("serviceList").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-fr-mode]"); if (!b) return;
+      frMode = b.dataset.frMode;
+      updateFrMode();
     });
     document.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", next));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => {

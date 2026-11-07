@@ -44,6 +44,7 @@ window.RS_CONFIG = {
   // Memberships (monthly) and session packs. Editable from the admin Settings tab.
   // TODO: confirm session-pack prices and validity with the client (memberships are from the design).
   plans: {
+    serviceId: "full-recovery", // memberships and packs are for this service
     memberships: [
       { id: "m4", sessions: 4, price: 400, image: "assets/img/sauna.jpg" },
       { id: "m8", sessions: 8, price: 750, image: "assets/img/cold-plunge.jpg" },

@@ -626,9 +626,11 @@
     new: "st-noshow", contacted: "st-done", active: "st-confirmed", cancelled: "st-cancelled"
   };
   function planName(r) {
-    // Stored label is English; rebuild it in the admin's language.
+    // Stored label is English (e.g. "Full Recovery – 8 Sessions / Month"); rebuild it in Arabic when needed.
     if (!L.isAr) return r.label;
-    return r.type === "membership" ? `${L.sessions(r.sessions)} ${tr("plans.perMonth")}` : `باقة ${L.sessions(r.sessions)}`;
+    const svcLabel = r.label.includes(" – ") ? (C.services.find((s) => r.label.startsWith(s.name + " – ")) || {}).name_ar : "";
+    const plan = r.type === "membership" ? `${L.sessions(r.sessions)} ${tr("plans.perMonth")}` : `باقة ${L.sessions(r.sessions)}`;
+    return svcLabel ? `${svcLabel} – ${plan}` : plan;
   }
   function watchPlans() {
     unsubPlans = DB.watchPlanRequests((rows) => {
@@ -714,6 +716,8 @@
   }
   function renderPlanEditor() {
     const plans = C.plans || { memberships: [], packs: [] };
+    const forId = plans.serviceId || "full-recovery";
+    $("plansService").innerHTML = C.services.map((sv) => `<option value="${esc(sv.id)}" ${sv.id === forId ? "selected" : ""}>${esc(L.field(sv, "name"))}</option>`).join("");
     $("membershipRows").innerHTML = ""; $("packRows").innerHTML = "";
     (plans.memberships || []).forEach((p) => $("membershipRows").appendChild(planRow("memberships", p)));
     (plans.packs || []).forEach((p) => $("packRows").appendChild(planRow("packs", p)));
@@ -748,7 +752,7 @@
       $("plansSetError").textContent = tr("set.errPlans"); return;
     }
     $("plansSetError").textContent = "";
-    await saveSite((site) => { site.plans = { memberships, packs }; }, e.currentTarget);
+    await saveSite((site) => { site.plans = { ...(site.plans || {}), serviceId: $("plansService").value, memberships, packs }; }, e.currentTarget);
   });
 
   start();

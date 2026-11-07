@@ -751,3 +751,22 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .menu.open .menu-nav a:nth-child(5) { transition-delay: .36s, .36s, 0s; }
 [dir="rtl"] .plan-card { padding: 12px 12px 12px 14px; }
 [dir="rtl"] .plan-count { line-height: 1.4; }
+
+/* Full Recovery: Single Session | Membership switch inside the booking list */
+.fr-mode { margin: 4px 0 10px; padding: 16px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); animation: stepIn .3s ease; }
+.fr-label { margin: 0 0 10px; font-size: 15px; color: var(--muted); }
+.fr-mode .seg { background: var(--card); }
+.fr-mode .seg-btn { min-height: 46px; font-size: 15px; }
+#frPlans { margin-top: 14px; }
+#frPlans .plan-list { gap: 8px; }
+#frPlans .plan-card { grid-template-columns: 76px 1px 1fr auto; gap: 10px; padding: 10px 12px 10px 10px; }
+#frPlans .plan-card img { width: 76px; height: 56px; }
+#frPlans .plan-count { font-size: 20px; }
+.fr-benefits { margin: 18px 0 6px; }
+.fr-benefits svg { width: 24px; height: 24px; }
+.fr-benefits li { font-size: 12.5px; }
+.fr-more { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--ink); }
+.fr-more svg { width: 16px; height: 16px; }
+.plans-for { margin: 14px 4px 0; font-size: 14px; line-height: 1.5; }
+[dir="rtl"] #frPlans .plan-card { padding: 10px 10px 10px 12px; }
+[dir="rtl"] .fr-more svg { transform: scaleX(-1); }

@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611072018" />
-  <script src="js/i18n.js?v=202611072018"></script>
-  <script src="js/theme.js?v=202611072018"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611072030" />
+  <script src="js/i18n.js?v=202611072030"></script>
+  <script src="js/theme.js?v=202611072030"></script>
 </head>
 <body class="booking-page plans-page">
   <span hidden data-i18n-title="plans.pageTitle"></span>
@@ -80,6 +80,7 @@
         </div>
 
         <div id="planPanel" role="tabpanel">
+          <p class="plans-for" id="plansFor"></p>
           <div class="plans-head">
             <h2 id="plansTitle"></h2>
             <p id="plansSub"></p>
@@ -98,52 +99,11 @@
     </div>
   </main>
 
-  <!-- Join request -->
-  <dialog class="policy join-dialog" id="joinDialog" aria-labelledby="joinTitle">
-    <form class="policy-inner" id="joinForm" novalidate>
-      <div id="joinFormView">
-        <h2 id="joinTitle" data-i18n="details.title">Your Details</h2>
-        <div class="join-plan" id="joinPlan"></div>
-        <div class="field" id="j-name">
-          <label for="jName" data-i18n="f.name">Full Name *</label>
-          <input class="input" id="jName" autocomplete="name" maxlength="100" required />
-          <div class="error-msg" data-i18n="f.nameErr">Please enter your full name.</div>
-        </div>
-        <div class="field" id="j-phone">
-          <label for="jPhone" data-i18n="f.phone">Phone Number *</label>
-          <div class="phone-wrap">
-            <select id="jCc" data-i18n-aria="f.cc" autocomplete="tel-country-code"></select>
-            <input id="jPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="50 123 4567" required />
-          </div>
-          <div class="error-msg" data-i18n="f.phoneErr">Please enter a valid phone number.</div>
-        </div>
-        <div class="field" id="j-email">
-          <label for="jEmail" data-i18n="f.email">Email (Optional)</label>
-          <input class="input" id="jEmail" type="email" autocomplete="email" inputmode="email" dir="ltr" maxlength="120" />
-          <div class="error-msg" data-i18n="f.emailErr">Please enter a valid email or leave it empty.</div>
-        </div>
-        <p class="form-error" id="joinError" role="alert"></p>
-        <div class="grid-2">
-          <button class="btn btn-outline" type="button" data-join-close data-i18n="nb.cancel">Cancel</button>
-          <button class="btn btn-primary" type="submit" id="joinSubmit" data-i18n="join.submit">Send Request</button>
-        </div>
-      </div>
-      <div id="joinDoneView" hidden>
-        <div class="check-ring join-check"><span data-icon="check" style="display:contents"></span></div>
-        <h2 data-i18n="join.doneTitle">Request Received</h2>
-        <div class="join-plan" id="joinDonePlan"></div>
-        <p class="muted" data-i18n="join.doneText">We'll contact you on WhatsApp to activate your plan.</p>
-        <div class="join-done-actions">
-          <a class="btn btn-primary btn-block" id="joinWa" target="_blank" rel="noopener"><span data-icon="whatsapp" style="display:contents"></span> <span data-i18n="join.wa">Continue on WhatsApp</span></a>
-          <button class="btn btn-outline btn-block" type="button" data-join-close data-i18n="join.close">Close</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
 
-  <script src="js/config.js?v=202611072018"></script>
-  <script src="js/firebase-config.js?v=202611072018"></script>
-  <script src="js/common.js?v=202611072018"></script>
-  <script src="js/plans.js?v=202611072018"></script>
+  <script src="js/config.js?v=202611072030"></script>
+  <script src="js/firebase-config.js?v=202611072030"></script>
+  <script src="js/common.js?v=202611072030"></script>
+  <script src="js/plans-core.js?v=202611072030"></script>
+  <script src="js/plans.js?v=202611072030"></script>
 </body>
 </html>

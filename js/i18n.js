@@ -271,6 +271,11 @@
       "plans.buyPack": "Get a Session Pack",
       "plans.note": "No online payment needed. Pay at the studio and we'll confirm on WhatsApp.",
       "plans.empty": "No plans available right now. Message us on WhatsApp.",
+      "plans.forService": "All plans are for {service} sessions.",
+      "fr.session": "Single Session",
+      "fr.membership": "Membership",
+      "fr.morePacks": "Prefer a session pack? See all plans",
+      "fr.modeLabel": "How would you like to book Full Recovery?",
       "plans.typeMembership": "Membership",
       "plans.typePack": "Session pack",
       "join.selected": "Selected plan",
@@ -302,6 +307,7 @@
       "set.validityEn": "Validity (English)", "set.validityAr": "Validity (Arabic)",
       "set.image": "Photo",
       "set.addPlan": "+ Add",
+      "set.plansFor": "Plans are for",
       "set.errPlans": "Each plan needs at least 1 session and a price."
     },
 
@@ -571,6 +577,11 @@
       "plans.buyPack": "احصل على الباقة",
       "plans.note": "لا حاجة للدفع أونلاين. ادفع في الاستوديو وسنؤكد عبر واتساب.",
       "plans.empty": "لا توجد باقات متاحة حالياً. راسلنا عبر واتساب.",
+      "plans.forService": "جميع الباقات لجلسات {service}.",
+      "fr.session": "جلسة واحدة",
+      "fr.membership": "عضوية",
+      "fr.morePacks": "تفضّل باقة جلسات؟ شاهد كل الباقات",
+      "fr.modeLabel": "كيف تريد حجز التعافي الكامل؟",
       "plans.typeMembership": "عضوية",
       "plans.typePack": "باقة جلسات",
       "join.selected": "الباقة المختارة",
@@ -602,6 +613,7 @@
       "set.validityEn": "مدة الصلاحية (إنجليزي)", "set.validityAr": "مدة الصلاحية (عربي)",
       "set.image": "الصورة",
       "set.addPlan": "+ إضافة",
+      "set.plansFor": "الباقات خاصة بخدمة",
       "set.errPlans": "كل باقة تحتاج جلسة واحدة على الأقل وسعراً."
     }
   };
