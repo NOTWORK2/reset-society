@@ -50,7 +50,7 @@
   function cardsHTML(list, tab, chosenId, group) {
     if (!list.length) return `<p class="empty-note">${tr("plans.empty")}</p>`;
     return list.map((p) => {
-      const sub = tab === "memberships" ? tr("plans.perMonth") : (L.field(p, "validity") || "");
+      const sub = tab === "memberships" ? tr("plans.perMonth") : (L.field(p, "validity") || tr("plans.oneTime"));
       const id = `${group}-${esc(p.id)}`;
       return `
         <input class="sr-only" type="radio" name="${group}" id="${id}" value="${esc(p.id)}" ${p.id === chosenId ? "checked" : ""} />
