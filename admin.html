@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Admin | Reset Society</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#f5eee6" />
+  <link rel="icon" type="image/png" href="assets/img/logo-r.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body class="admin-page">
+  <header class="site-header is-solid">
+    <div class="container">
+      <a class="brand-inline" href="index.html">Reset Society</a>
+      <div class="admin-user" id="userBox" hidden>
+        <span id="userEmail"></span>
+        <button class="btn btn-outline btn-sm" type="button" id="signOutBtn">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <!-- Status messages (loading / not configured) -->
+    <section class="admin-center" id="statusView">
+      <p class="muted" id="statusText">Loading…</p>
+    </section>
+
+    <!-- Login -->
+    <section class="admin-center" id="loginView" hidden>
+      <form class="login-card" id="loginForm" novalidate>
+        <h1>Admin</h1>
+        <p class="muted">Sign in to manage bookings.</p>
+        <div class="field">
+          <label for="email">Email</label>
+          <input class="input" id="email" type="email" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="input" id="password" type="password" autocomplete="current-password" required />
+        </div>
+        <p class="form-error" id="loginError" role="alert"></p>
+        <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Sign in</button>
+        <button class="link-btn" type="button" id="forgotBtn">Forgot password?</button>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashView" hidden>
+      <div class="container">
+        <div class="dash-head">
+          <div>
+            <p class="eyebrow caps" id="todayLabel"></p>
+            <h1>Bookings</h1>
+          </div>
+          <button class="btn btn-primary" type="button" id="newBookingBtn">+ New booking</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><span>Today</span><strong id="statToday">0</strong></div>
+          <div class="stat"><span>Next 7 days</span><strong id="statWeek">0</strong></div>
+          <div class="stat"><span>Today's revenue</span><strong id="statRevenue">0</strong></div>
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button class="tab active" role="tab" aria-selected="true" data-tab="bookings">Bookings</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="schedule">Schedule</button>
+        </div>
+
+        <!-- Bookings tab -->
+        <div class="tab-panel" id="tab-bookings">
+          <div class="toolbar">
+            <div class="chips" role="group" aria-label="Filter">
+              <button class="chip active" data-filter="today">Today</button>
+              <button class="chip" data-filter="upcoming">Upcoming</button>
+              <button class="chip" data-filter="past">Past</button>
+            </div>
+            <input class="input search" id="search" type="search" placeholder="Search name, phone or RS-…" aria-label="Search bookings" />
+          </div>
+          <div id="bookingList" aria-live="polite"></div>
+        </div>
+
+        <!-- Schedule tab -->
+        <div class="tab-panel" id="tab-schedule" hidden>
+          <div class="toolbar">
+            <div class="day-nav">
+              <button class="cal-nav" type="button" id="dayPrev" aria-label="Previous day"><span data-icon="chevL" style="display:contents"></span></button>
+              <input class="input" type="date" id="dayPicker" aria-label="Day" />
+              <button class="cal-nav" type="button" id="dayNext" aria-label="Next day"><span data-icon="chevR" style="display:contents"></span></button>
+            </div>
+            <label class="check day-closed"><input type="checkbox" id="dayClosed" /> <span>Closed all day</span></label>
+          </div>
+          <p class="muted small">Block a time to stop online bookings for it (e.g. maintenance or private sessions).</p>
+          <div class="schedule" id="schedule"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- New booking (phone / walk-in) -->
+  <dialog class="policy" id="newDialog" aria-labelledby="newTitle">
+    <form class="policy-inner" id="newForm" novalidate>
+      <h2 id="newTitle">New booking</h2>
+      <div class="field">
+        <label for="nbService">Service</label>
+        <select class="input" id="nbService" required></select>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="nbDate">Date</label>
+          <input class="input" id="nbDate" type="date" required />
+        </div>
+        <div class="field">
+          <label for="nbTime">Time</label>
+          <select class="input" id="nbTime" required></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="nbName">Name</label>
+        <input class="input" id="nbName" required maxlength="100" />
+      </div>
+      <div class="field">
+        <label for="nbPhone">Phone</label>
+        <input class="input" id="nbPhone" type="tel" required maxlength="30" placeholder="+971 50 123 4567" />
+      </div>
+      <p class="form-error" id="newError" role="alert"></p>
+      <div class="grid-2">
+        <button class="btn btn-outline" type="button" id="newCancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="newSave">Save booking</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/config.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

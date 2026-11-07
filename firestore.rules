@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Reset Society — Firestore security rules.
+// Deploy from the site folder:  firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Guests per time slot for each service. Keep in sync with "capacity" in js/config.js.
+    function capacity(svc) {
+      return {
+        'cold-plunge': 1,
+        'sauna': 1,
+        'compression-boots': 1,
+        'full-recovery': 1
+      }.get(svc, 0);
+    }
+
+    function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function validDate(d) { return d is string && d.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$'); }
+    function validTime(t) { return t is string && t.matches('^[0-2][0-9]:[0-5][0-9]$'); }
+    function notPast(d) {
+      let p = d.split('-');
+      return timestamp.date(int(p[0]), int(p[1]), int(p[2])) + duration.value(1, 'd') > request.time;
+    }
+    function dayOpen(d) {
+      let s = /databases/$(database)/documents/settings/public;
+      return !exists(s) || !(d in get(s).data.get('closedDates', []));
+    }
+    function bookingPath(id) { return /databases/$(database)/documents/bookings/$(id); }
+    function lockPath(id) { return /databases/$(database)/documents/slotLocks/$(id); }
+
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false; // add admins from the Firebase console
+    }
+
+    match /settings/public {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // One document per taken place in a time slot. Public (no personal data) so the booking
+    // page can show which times are free. A guest can only create one together with its booking.
+    match /slotLocks/{lockId} {
+      allow read: if true;
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.keys().hasOnly(['date', 'time', 'service', 'n', 'bookingId'])
+        && validDate(request.resource.data.date)
+        && validTime(request.resource.data.time)
+        && request.resource.data.n is int
+        && request.resource.data.n >= 1
+        && request.resource.data.n <= capacity(request.resource.data['service'])
+        && lockId == request.resource.data.date + '_' + request.resource.data.time + '_'
+                     + request.resource.data['service'] + '_' + string(request.resource.data.n)
+        && str(request.resource.data.bookingId, 20)
+        && !exists(bookingPath(request.resource.data.bookingId))
+        && getAfter(bookingPath(request.resource.data.bookingId)).data.lockId == lockId
+      );
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    function validBooking(id, d) {
+      let lock = getAfter(lockPath(d.lockId)).data;
+      return d.keys().hasOnly(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
+                               'name', 'phone', 'email', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
+        && d.keys().hasAll(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
+                            'name', 'phone', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
+        && id.matches('^RS-[0-9]{5}$') && d.ref == id
+        && d.uid == request.auth.uid
+        && d.status == 'confirmed'
+        && capacity(d['service']) > 0
+        && str(d.serviceName, 60)
+        && d.price is number && d.price >= 0
+        && str(d.currency, 5)
+        && validDate(d.date) && validTime(d.time) && notPast(d.date) && dayOpen(d.date)
+        && str(d.name, 100)
+        && str(d.phone, 30)
+        && (!('email' in d) || (d.email is string && d.email.size() <= 120))
+        // Online payment isn't live yet; allow 'online' only once payments are verified server-side.
+        && d.pay == 'location'
+        && d.createdAt == request.time
+        && str(d.lockId, 80)
+        && !exists(lockPath(d.lockId))
+        && lock.bookingId == id
+        && lock.date == d.date && lock.time == d.time && lock['service'] == d['service'];
+    }
+
+    match /bookings/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isAdmin() || (signedIn() && validBooking(id, request.resource.data));
+      allow update, delete: if isAdmin();
+    }
+  }
+}
