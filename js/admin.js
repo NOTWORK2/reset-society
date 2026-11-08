@@ -306,7 +306,8 @@
         minLeadMinutes: C.booking.minLeadMinutes
       },
       policy: C.policy || null,
-      plans: C.plans || { memberships: [], packs: [] }
+      plans: C.plans || { memberships: [], packs: [] },
+      music: C.music || null
     }));
   }
 
@@ -345,6 +346,7 @@
     $("siteNote").textContent = tr(siteSaved ? "set.note" : "set.defaultsNote");
     renderServiceAdmin();
     renderPlanEditor();
+    renderMusic();
 
     $("stWhatsapp").value = C.whatsapp || "";
     $("stPhone").value = C.phoneDisplay || "";
@@ -618,6 +620,82 @@
   $("savePolicy").addEventListener("click", async (e) => {
     const lines = (id) => $(id).value.split("\n").map((l) => l.trim()).filter(Boolean);
     await saveSite((site) => { site.policy = { en: lines("stPolicyEn"), ar: lines("stPolicyAr") }; }, e.currentTarget);
+  });
+
+
+  /* ---------- background music ---------- */
+  let muPending = null, muPreviewAudio = null;
+  const ytId = (url) => { const m = String(url || "").match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/); return m ? m[1] : null; };
+  function renderMusic() {
+    const m = C.music || {};
+    $("muEnabled").checked = !!m.enabled;
+    $("muSource").value = m.type || "youtube";
+    $("muUrl").value = m.type === "file" ? "" : (m.url || "");
+    $("muVolume").value = m.volume ?? 40; $("muVolVal").textContent = m.volume ?? 40;
+    $("muFileName").textContent = m.type === "file" && m.fileName ? m.fileName : "";
+    $("muError").textContent = "";
+    muPending = null; $("muFile").value = "";
+    updateMusicFields();
+  }
+  function updateMusicFields() {
+    const type = $("muSource").value;
+    $("muUrlField").hidden = type === "file";
+    $("muFileField").hidden = type !== "file";
+    $("muUrlLabel").textContent = tr(type === "youtube" ? "set.musicYoutube" : "set.musicUrl");
+    $("muUrl").placeholder = type === "youtube" ? "https://www.youtube.com/watch?v=…" : "https://…/music.mp3";
+    $("muPreview").hidden = type === "youtube";
+  }
+  $("muSource").addEventListener("change", updateMusicFields);
+  $("muVolume").addEventListener("input", (e) => { $("muVolVal").textContent = e.target.value; if (muPreviewAudio) muPreviewAudio.volume = e.target.value / 100; });
+  $("muFile").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    $("muError").textContent = "";
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { $("muError").textContent = tr("set.musicTooBig"); e.target.value = ""; return; }
+    muPending = f; $("muFileName").textContent = `${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
+  });
+  $("muPreview").addEventListener("click", async () => {
+    if (muPreviewAudio) { muPreviewAudio.pause(); muPreviewAudio = null; $("muPreview").textContent = tr("set.musicPreview"); return; }
+    let src = null;
+    if ($("muSource").value === "url") src = $("muUrl").value.trim();
+    else if (muPending) src = URL.createObjectURL(muPending);
+    else if (C.music && C.music.type === "file" && C.music.fileId) src = await DB.getAudioUrl(C.music.fileId);
+    if (!src) { $("muError").textContent = tr("set.musicErrFile"); return; }
+    muPreviewAudio = new Audio(src); muPreviewAudio.volume = $("muVolume").value / 100;
+    muPreviewAudio.addEventListener("ended", () => { muPreviewAudio = null; $("muPreview").textContent = tr("set.musicPreview"); });
+    try { await muPreviewAudio.play(); $("muPreview").textContent = tr("set.musicStop"); }
+    catch (err) { muPreviewAudio = null; $("muError").textContent = tr("set.musicErrFile"); }
+  });
+  $("muSave").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const type = $("muSource").value, url = $("muUrl").value.trim();
+    const old = C.music || {};
+    const music = { enabled: $("muEnabled").checked, type, volume: Number($("muVolume").value) || 40 };
+    $("muError").textContent = "";
+    if (type === "youtube") {
+      if (!ytId(url)) { $("muError").textContent = tr("set.musicErrYoutube"); return; }
+      music.url = url;
+    } else if (type === "url") {
+      if (!/^https?:\/\//i.test(url)) { $("muError").textContent = tr("set.musicErrUrl"); return; }
+      music.url = url;
+    } else {
+      if (!muPending && !(old.type === "file" && old.fileId)) { $("muError").textContent = tr("set.musicErrFile"); return; }
+      music.fileId = old.fileId; music.fileName = old.fileName;
+    }
+    btn.disabled = true;
+    try {
+      if (type === "file" && muPending) {
+        music.fileId = await DB.uploadAudio(muPending, (p) => { $("muError").textContent = tr("set.musicUploading", { p: Math.round(p * 100) }); });
+        music.fileName = muPending.name;
+        $("muError").textContent = "";
+      }
+      const ok = await saveSite((site) => { site.music = music; });
+      if (ok && old.fileId && old.fileId !== music.fileId) DB.deleteAudio(old.fileId).catch(() => {});
+      if (ok) muPending = null;
+    } catch (err) {
+      console.error(err);
+      $("muError").textContent = tr("set.saveFailed");
+    } finally { btn.disabled = false; }
   });
 
   /* ---------- plan requests (memberships & session packs) ---------- */

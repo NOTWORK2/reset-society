@@ -53,6 +53,9 @@ window.RS_CONFIG = {
     packs: [] // "Session Packs" on the booking page are the single sessions above
   },
 
+  // Background music is set from the admin (YouTube link, audio link or uploaded file); null = off.
+  music: null,
+
   services: [
     {
       id: "cold-plunge",
@@ -123,7 +126,7 @@ window.RS_CONFIG = {
 window.RS_applySite = function (site) {
   const C = window.RS_CONFIG;
   if (!site) return;
-  ["services", "hours", "whatsapp", "phoneDisplay", "instagram", "mapsQuery", "policy", "plans"].forEach((k) => {
+  ["services", "hours", "whatsapp", "phoneDisplay", "instagram", "mapsQuery", "policy", "plans", "music"].forEach((k) => {
     if (site[k] !== undefined && site[k] !== null) C[k] = site[k];
   });
   if (site.booking) Object.assign(C.booking, site.booking);

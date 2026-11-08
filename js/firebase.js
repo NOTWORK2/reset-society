@@ -8,6 +8,7 @@
  *   settings/site         prices, services, hours, contact, booking times, policy (edited in the admin)
  *   media/{id}            service photos uploaded from the admin, stored as small JPEG data URLs
  *   planRequests/{id}     membership / session-pack join requests from the Memberships page
+ *   audio/{id}            background music uploaded from the admin: meta + parts/{n} base64 chunks (<1 MB each)
  *   admins/{uid}          exists = that signed-in user is an admin (create it in the console)
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -220,6 +221,52 @@ async function setPlanRequestStatus(id, status) {
   await updateDoc(doc(db, "planRequests", id), { status, updatedAt: serverTimestamp() });
 }
 
+/* ---------- background music files (stored in Firestore chunks; no Storage plan needed) ---------- */
+
+const AUDIO_CHUNK = 480 * 1024; // bytes per part (~655 KB as base64, under the 1 MiB document limit)
+
+async function uploadAudio(file, onProgress) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const id = doc(collection(db, "audio")).id;
+  const total = Math.ceil(buf.length / AUDIO_CHUNK);
+  for (let i = 0; i < total; i++) {
+    const slice = buf.subarray(i * AUDIO_CHUNK, (i + 1) * AUDIO_CHUNK);
+    let bin = "";
+    for (let j = 0; j < slice.length; j += 0x8000) bin += String.fromCharCode.apply(null, slice.subarray(j, j + 0x8000));
+    await setDoc(doc(db, "audio", id, "parts", String(i).padStart(4, "0")), { n: i, data: btoa(bin) });
+    if (onProgress) onProgress((i + 1) / total);
+  }
+  await setDoc(doc(db, "audio", id), { name: file.name, type: file.type || "audio/mpeg", size: buf.length, chunks: total, createdAt: serverTimestamp() });
+  return id;
+}
+
+async function getAudioUrl(id) {
+  const key = "/rs-audio/" + id;
+  let cache = null;
+  if (window.caches) { try { cache = await caches.open("rs-audio"); const hit = await cache.match(key); if (hit) return URL.createObjectURL(await hit.blob()); } catch (e) { cache = null; } }
+  const meta = await getDoc(doc(db, "audio", id));
+  if (!meta.exists()) return null;
+  const parts = await getDocs(query(collection(db, "audio", id, "parts"), orderBy("n")));
+  const chunks = parts.docs.map((d) => {
+    const b = atob(d.data().data); const u = new Uint8Array(b.length);
+    for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    return u;
+  });
+  const type = meta.data().type || "audio/mpeg";
+  const blob = new Blob(chunks, { type });
+  if (cache) { try { await cache.put(key, new Response(blob, { headers: { "Content-Type": type } })); } catch (e) { /* cache full */ } }
+  return URL.createObjectURL(blob);
+}
+
+async function deleteAudio(id) {
+  const parts = await getDocs(collection(db, "audio", id, "parts"));
+  const batch = writeBatch(db);
+  parts.forEach((d) => batch.delete(d.ref));
+  batch.delete(doc(db, "audio", id));
+  await batch.commit();
+  if (window.caches) { try { const c = await caches.open("rs-audio"); await c.delete("/rs-audio/" + id); } catch (e) { /* ignore */ } }
+}
+
 window.__rsDbResolve({
   mode: "firebase",
   slotKey,
@@ -228,6 +275,7 @@ window.__rsDbResolve({
   createBooking,
   loadSite,
   getMedia,
+  getAudioUrl,
   createPlanRequest,
   // admin
   auth,
@@ -248,5 +296,7 @@ window.__rsDbResolve({
   uploadMedia,
   deleteMedia,
   watchPlanRequests,
-  setPlanRequestStatus
+  setPlanRequestStatus,
+  uploadAudio,
+  deleteAudio
 });

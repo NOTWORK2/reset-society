@@ -67,6 +67,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Background music uploaded from the admin, stored as base64 parts under 1 MiB each.
+    match /audio/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'type', 'size', 'chunks', 'createdAt'])
+        && request.resource.data.type.matches('^audio/.*');
+      allow delete: if isAdmin();
+      match /parts/{n} {
+        allow read: if true;
+        allow create, update: if isAdmin()
+          && request.resource.data.keys().hasOnly(['n', 'data'])
+          && request.resource.data.n is int
+          && request.resource.data.data is string
+          && request.resource.data.data.size() < 900000;
+        allow delete: if isAdmin();
+      }
+    }
+
     // One document per taken place in a time slot. Public (no personal data) so the booking
     // page can show which times are free. A guest can only create one together with its booking.
     match /slotLocks/{lockId} {
