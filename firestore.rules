@@ -38,6 +38,32 @@ service cloud.firestore {
     function bookingPath(id) { return /databases/$(database)/documents/bookings/$(id); }
     function lockPath(id) { return /databases/$(database)/documents/slotLocks/$(id); }
 
+    function myPhone() {
+      let c = /databases/$(database)/documents/customers/$(request.auth.uid);
+      return exists(c) ? get(c).data.get('phoneDigits', '-') : '-';
+    }
+
+    // Customer accounts: a person's own profile, plus a one-per-number claim on the phone.
+    match /customers/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'phoneDigits', 'email', 'hasEmail', 'createdAt'])
+        && str(request.resource.data.name, 100)
+        && request.resource.data.phoneDigits is string && request.resource.data.phoneDigits.matches('^[0-9]{8,15}$')
+        && getAfter(/databases/$(database)/documents/phones/$(request.resource.data.phoneDigits)).data.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'hasEmail']);
+      allow delete: if isAdmin();
+    }
+    match /phones/{digits} {
+      // Signed-in users may look up one number (to see if it's taken); only admins may list them.
+      allow get: if signedIn();
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     match /admins/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false; // add admins from the Firebase console
@@ -110,7 +136,7 @@ service cloud.firestore {
     function validBooking(id, d) {
       let lock = getAfter(lockPath(d.lockId)).data;
       return d.keys().hasOnly(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
-                               'name', 'phone', 'email', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
+                               'name', 'phone', 'phoneDigits', 'email', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
         && d.keys().hasAll(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
                             'name', 'phone', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
         && id.matches('^RS-[0-9]{5}$') && d.ref == id
@@ -123,6 +149,7 @@ service cloud.firestore {
         && validDate(d.date) && validTime(d.time) && notPast(d.date) && dayOpen(d.date)
         && str(d.name, 100)
         && str(d.phone, 30)
+        && (!('phoneDigits' in d) || (d.phoneDigits is string && d.phoneDigits.size() <= 15))
         && (!('email' in d) || (d.email is string && d.email.size() <= 120))
         // Online payment isn't live yet; allow 'online' only once payments are verified server-side.
         && d.pay == 'location'
@@ -159,7 +186,8 @@ service cloud.firestore {
     }
 
     match /bookings/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      // Customers see their own bookings: made from their account, or matching their registered phone.
+      allow read: if isAdmin() || (signedIn() && (resource.data.uid == request.auth.uid || resource.data.phoneDigits == myPhone()));
       allow create: if isAdmin() || (signedIn() && validBooking(id, request.resource.data));
       allow update, delete: if isAdmin();
     }

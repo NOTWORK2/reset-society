@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Your Reset Journey | Reset Society</title>
+  <meta name="description" content="Log in to see your visits, favourite session and upcoming bookings at Reset Society." />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#f5eee6" />
+  <link rel="icon" type="image/png" href="assets/img/logo-r.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=202611081900" />
+  <script src="js/i18n.js?v=202611081900"></script>
+  <script src="js/theme.js?v=202611081900"></script>
+</head>
+<body class="booking-page account-page">
+  <span hidden data-i18n-title="acc.pageTitle"></span>
+  <header class="site-header is-solid">
+    <div class="container">
+      <a class="brand-inline" href="index.html">Reset Society</a>
+      <div class="header-tools always">
+        <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
+        <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
+        <button class="menu-btn" type="button" data-i18n-aria="menu.open" aria-controls="menu" aria-expanded="false"><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="menu" id="menu" aria-hidden="true">
+    <div class="menu-backdrop" data-menu-close></div>
+    <aside class="menu-panel" role="dialog" aria-modal="true" data-i18n-aria="menu.title">
+      <div class="menu-bg"><img src="assets/img/leaves-wall.jpg" alt="" /></div>
+      <div class="menu-top">
+        <a class="brand" href="index.html" aria-label="Reset Society"><span class="brand-mark">RESET</span><span class="brand-sub">SOCIETY</span></a>
+        <button class="menu-close" type="button" data-menu-close data-i18n-aria="menu.close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <p class="menu-eyebrow caps" data-i18n="menu.title">Menu</p>
+      <nav class="menu-nav" data-i18n-aria="menu.title">
+          <a href="index.html"><span class="menu-num">01</span><span class="menu-label" data-i18n="nav.home">Home</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="index.html#services"><span class="menu-num">02</span><span class="menu-label" data-i18n="nav.services">Services</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="book.html#memberships"><span class="menu-num">03</span><span class="menu-label" data-i18n="nav.memberships">Memberships</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="index.html#ritual"><span class="menu-num">04</span><span class="menu-label" data-i18n="nav.ritual">The Ritual</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="index.html#visit"><span class="menu-num">05</span><span class="menu-label" data-i18n="nav.visitUs">Visit Us</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="account.html"><span class="menu-num">06</span><span class="menu-label" data-i18n="nav.account">My Journey</span><span class="menu-arrow" data-icon="arrow"></span></a>
+      </nav>
+      <a class="btn btn-light btn-block menu-cta" href="book.html"><span data-i18n="nav.book">Book a Session</span> <span data-icon="arrow" style="display:contents"></span></a>
+      <div class="menu-foot">
+        <div class="menu-contact">
+          <a class="menu-chip" data-wa><span data-icon="whatsapp" style="display:contents"></span><span data-i18n="nav.whatsapp">WhatsApp</span></a>
+          <a class="menu-chip" data-ig><span data-icon="instagram" style="display:contents"></span><span data-i18n="nav.instagram">Instagram</span></a>
+        </div>
+        <div class="menu-meta">
+          <span class="menu-city"><span data-icon="pin" style="display:contents"></span><span data-i18n="city">Umm Al Quwain, UAE</span></span>
+          <div class="menu-tools">
+            <button class="theme-btn" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
+            <button class="lang-btn" type="button" data-lang-toggle>عربي</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <main class="booking-main">
+    <div class="plans-wrap acc-wrap">
+      <section class="banner plans-banner">
+        <div class="banner-bg"><img src="assets/img/leaves-wall.jpg" alt="" /></div>
+        <p class="caps plans-tagline" style="margin:0 0 10px" data-i18n="acc.eyebrow">Your Reset Journey</p>
+        <h1 id="accTitle" data-i18n="acc.title">Track your recovery</h1>
+      </section>
+
+      <div class="sheet plans-sheet">
+        <!-- loading / messages -->
+        <div id="accStatus"><p class="empty-note" id="accStatusText" data-i18n="acc.loading">Loading…</p></div>
+
+        <!-- login / sign-up -->
+        <div id="accAuth" hidden>
+          <div class="seg" role="tablist">
+            <button class="seg-btn active" type="button" role="tab" data-auth-tab="login" data-i18n="acc.login">Log in</button>
+            <button class="seg-btn" type="button" role="tab" data-auth-tab="signup" data-i18n="acc.signup">Create account</button>
+          </div>
+          <p class="acc-intro muted" data-i18n="acc.intro">See how many times you've visited, your favourite session and what's coming up. Use the phone number you book with.</p>
+
+          <form id="loginForm" class="acc-form" novalidate>
+            <div class="field">
+              <label for="liId" data-i18n="acc.idLabel">Phone number or email</label>
+              <div class="phone-wrap" id="liCcWrap">
+                <select id="liCc" data-i18n-aria="f.cc"></select>
+                <input id="liId" class="acc-id" autocomplete="username" inputmode="tel" dir="ltr" placeholder="50 123 4567" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="liPassword" data-i18n="admin.password">Password</label>
+              <input class="input" id="liPassword" type="password" autocomplete="current-password" dir="ltr" required />
+            </div>
+            <p class="form-error" id="liError" role="alert"></p>
+            <button class="btn btn-primary btn-block" type="submit" id="liSubmit" data-i18n="acc.login">Log in</button>
+            <button class="link-btn acc-link" type="button" id="liForgot" data-i18n="admin.forgot">Forgot password?</button>
+          </form>
+
+          <form id="signupForm" class="acc-form" novalidate hidden>
+            <div class="field">
+              <label for="suName" data-i18n="f.name">Full Name *</label>
+              <input class="input" id="suName" autocomplete="name" maxlength="100" required />
+            </div>
+            <div class="field">
+              <label for="suPhone" data-i18n="f.phone">Phone Number *</label>
+              <div class="phone-wrap">
+                <select id="suCc" data-i18n-aria="f.cc" autocomplete="tel-country-code"></select>
+                <input id="suPhone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="50 123 4567" required />
+              </div>
+              <p class="muted small" style="margin:6px 0 0" data-i18n="acc.phoneHint">Use the number you book sessions with, so your visits are counted.</p>
+            </div>
+            <div class="field">
+              <label for="suEmail" data-i18n="f.email">Email (Optional)</label>
+              <input class="input" id="suEmail" type="email" autocomplete="email" inputmode="email" dir="ltr" maxlength="120" />
+            </div>
+            <div class="field">
+              <label for="suPassword" data-i18n="acc.password">Password (6+ characters) *</label>
+              <input class="input" id="suPassword" type="password" autocomplete="new-password" dir="ltr" minlength="6" required />
+            </div>
+            <p class="form-error" id="suError" role="alert"></p>
+            <button class="btn btn-primary btn-block" type="submit" id="suSubmit" data-i18n="acc.signup">Create account</button>
+          </form>
+        </div>
+
+        <!-- journey -->
+        <div id="accJourney" hidden>
+          <div class="acc-head">
+            <div>
+              <p class="eyebrow caps" data-i18n="acc.hello">Welcome back</p>
+              <h2 id="accName"></h2>
+              <p class="muted ltr" id="accPhone"></p>
+            </div>
+            <button class="btn btn-outline btn-sm" type="button" id="accSignOut" data-i18n="admin.signOut">Sign out</button>
+          </div>
+          <p class="acc-line" id="accLine"></p>
+          <div class="journey-grid">
+            <div class="journey-stat"><strong id="statVisits">0</strong><span data-i18n="acc.visits">Visits</span></div>
+            <div class="journey-stat"><strong id="statMonth">0</strong><span data-i18n="acc.thisMonth">This month</span></div>
+            <div class="journey-stat"><strong id="statFav" class="is-text">—</strong><span data-i18n="acc.favourite">Favourite session</span></div>
+            <div class="journey-stat"><strong id="statSince" class="is-text">—</strong><span data-i18n="acc.since">Member since</span></div>
+          </div>
+          <h3 class="acc-sub" data-i18n="acc.upcoming">Upcoming sessions</h3>
+          <ul class="acc-list" id="accUpcoming"></ul>
+          <h3 class="acc-sub" data-i18n="acc.history">Recent visits</h3>
+          <ul class="acc-list" id="accHistory"></ul>
+          <div class="confirm-actions" style="padding:22px 0 0">
+            <a class="btn btn-primary" href="book.html"><span data-i18n="nav.book">Book a Session</span> <span data-icon="arrow" style="display:contents"></span></a>
+            <a class="btn btn-outline" id="accWa" target="_blank" rel="noopener"><span data-icon="whatsapp" style="display:contents"></span> <span data-i18n="nav.whatsapp">WhatsApp</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/config.js?v=202611081900"></script>
+  <script src="js/firebase-config.js?v=202611081900"></script>
+  <script src="js/common.js?v=202611081900"></script>
+  <script src="js/music.js?v=202611081900"></script>
+  <script src="js/account.js?v=202611081900"></script>
+</body>
+</html>

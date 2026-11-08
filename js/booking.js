@@ -285,6 +285,27 @@
     $("phone").value = state.phone || "";
     $("email").value = state.email || "";
     $("agree").checked = !!state.agree;
+    prefillFromAccount();
+  }
+  // A signed-in customer gets their name and phone filled in.
+  let prefilled = false;
+  async function prefillFromAccount() {
+    if (prefilled) return;
+    const db = await window.RS_DB; if (!db) return;
+    await db.auth.authStateReady();
+    const u = db.auth.currentUser;
+    if (!u || u.isAnonymous) { $("loginHint").hidden = false; return; }
+    $("loginHint").hidden = true;
+    const c = await db.getCustomer(u.uid).catch(() => null);
+    if (!c) return;
+    prefilled = true;
+    if (!$("name").value) $("name").value = c.name || u.displayName || "";
+    if (!$("phone").value && c.phoneDigits) {
+      const cc = COUNTRIES.map((x) => x[1]).sort((a, b) => b.length - a.length).find((code) => c.phoneDigits.startsWith(code));
+      if (cc) { $("cc").value = cc; $("phone").value = c.phoneDigits.slice(cc.length); } else $("phone").value = c.phoneDigits;
+    }
+    if (!$("email").value && c.hasEmail) $("email").value = c.email;
+    saveDetails();
   }
 
   /* ---------- navigation ---------- */

@@ -9,16 +9,19 @@
  *   media/{id}            service photos uploaded from the admin, stored as small JPEG data URLs
  *   planRequests/{id}     membership / session-pack join requests from the Memberships page
  *   audio/{id}            background music uploaded from the admin: meta + parts/{n} base64 chunks (<1 MB each)
+ *   customers/{uid}       customer account profile (name, phone); bookings are matched by phoneDigits
+ *   phones/{digits}       one doc per registered phone number, so a number can only be claimed once
  *   admins/{uid}          exists = that signed-in user is an admin (create it in the console)
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
-  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc
+  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator, signInAnonymously, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, sendPasswordResetEmail
+  onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword, EmailAuthProvider,
+  linkWithCredential, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const C = window.RS_CONFIG;
@@ -70,6 +73,15 @@ async function freePlace(date, time, service) {
 }
 
 const newRef = () => "RS-" + String(Math.floor(10000 + Math.random() * 90000));
+// Normalized phone for matching: digits only, international prefix dropped, UAE local numbers
+// (05x xxx xxxx) get the 971 code, so "050 123 4567", "+971 50 123 4567" and "971501234567" all match.
+function phoneDigits(p) {
+  let d = String(p || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.length === 10 && d.startsWith("05")) d = "971" + d.slice(1);
+  else if (d.length === 9 && d.startsWith("5")) d = "971" + d;
+  return d;
+}
 
 /* Saves the booking and its slot lock in one batch. Security rules reject the batch when the
    place is already taken, so two people can never hold the same place. */
@@ -82,7 +94,7 @@ async function createBooking(b, { asAdmin = false } = {}) {
     const lid = lockId(b.date, b.time, b.service, n);
     const data = {
       ref, service: b.service, serviceName: b.serviceName, price: b.price, currency: b.currency,
-      date: b.date, time: b.time, name: b.name, phone: b.phone, pay: b.pay,
+      date: b.date, time: b.time, name: b.name, phone: b.phone, phoneDigits: phoneDigits(b.phone), pay: b.pay,
       status: "confirmed", lockId: lid, uid: user.uid, createdAt: serverTimestamp()
     };
     if (b.email) data.email = b.email;
@@ -221,6 +233,66 @@ async function setPlanRequestStatus(id, status) {
   await updateDoc(doc(db, "planRequests", id), { status, updatedAt: serverTimestamp() });
 }
 
+/* ---------- customer accounts ----------
+   Simple sign-up with phone or email + password (no verification, by the client's choice).
+   A phone-only account uses a synthetic email so Firebase Auth can store it. */
+
+const PHONE_DOMAIN = "phone.reset-society.app";
+function loginEmail(identifier) {
+  const s = String(identifier || "").trim();
+  return s.includes("@") ? s.toLowerCase() : `${phoneDigits(s)}@${PHONE_DOMAIN}`;
+}
+
+async function customerSignUp({ name, phone, email, password }) {
+  const digits = phoneDigits(phone);
+  if (digits.length < 8) throw err("bad-phone", "Phone number too short");
+  const authEmail = (email && email.trim()) ? email.trim().toLowerCase() : `${digits}@${PHONE_DOMAIN}`;
+  await auth.authStateReady();
+  const cred = EmailAuthProvider.credential(authEmail, password);
+  let user;
+  try {
+    // Upgrade the anonymous visitor, so bookings made from this browser stay linked.
+    if (auth.currentUser && auth.currentUser.isAnonymous) user = (await linkWithCredential(auth.currentUser, cred)).user;
+    else user = (await createUserWithEmailAndPassword(auth, authEmail, password)).user;
+  } catch (e) {
+    if (e.code === "auth/credential-already-in-use" || e.code === "auth/provider-already-linked") user = (await createUserWithEmailAndPassword(auth, authEmail, password)).user;
+    else throw e;
+  }
+  try { await updateProfile(user, { displayName: name }); } catch (e) { /* cosmetic */ }
+  // Claim the phone number and create the profile together; fails if the number is taken.
+  try {
+    await runTransaction(db, async (tx) => {
+      const claim = await tx.get(doc(db, "phones", digits));
+      if (claim.exists() && claim.data().uid !== user.uid) throw err("phone-taken", "Phone already registered");
+      tx.set(doc(db, "phones", digits), { uid: user.uid });
+      tx.set(doc(db, "customers", user.uid), {
+        name, phone: "+" + digits, phoneDigits: digits, email: email ? email.trim().toLowerCase() : "",
+        hasEmail: !!(email && email.trim()), createdAt: serverTimestamp()
+      });
+    });
+  } catch (e) {
+    try { await user.delete(); } catch (e2) { /* leave for the owner to clean up */ }
+    throw e;
+  }
+  return user;
+}
+
+const customerSignIn = (identifier, password) => signInWithEmailAndPassword(auth, loginEmail(identifier), password);
+
+async function getCustomer(uid) {
+  const s = await getDoc(doc(db, "customers", uid));
+  return s.exists() ? s.data() : null;
+}
+
+/* Bookings matched by phone (any device, walk-ins added by the owner) or by this account's uid. */
+async function customerBookings(uid, digits) {
+  const byPhone = digits ? await getDocs(query(collection(db, "bookings"), where("phoneDigits", "==", digits), orderBy("date", "desc"), limit(400))) : null;
+  const byUid = await getDocs(query(collection(db, "bookings"), where("uid", "==", uid), orderBy("date", "desc"), limit(400)));
+  const seen = new Map();
+  [byPhone, byUid].forEach((snap) => snap && snap.forEach((d) => seen.set(d.id, d.data())));
+  return [...seen.values()];
+}
+
 /* ---------- background music files (stored in Firestore chunks; no Storage plan needed) ---------- */
 
 const AUDIO_CHUNK = 480 * 1024; // bytes per part (~655 KB as base64, under the 1 MiB document limit)
@@ -276,6 +348,11 @@ window.__rsDbResolve({
   loadSite,
   getMedia,
   getAudioUrl,
+  customerSignUp,
+  customerSignIn,
+  getCustomer,
+  customerBookings,
+  phoneDigits,
   createPlanRequest,
   // admin
   auth,
