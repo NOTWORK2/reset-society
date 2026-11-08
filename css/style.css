@@ -760,18 +760,19 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 
 .plans-for { margin: 14px 4px 0; font-size: 14px; line-height: 1.5; }
 
-/* Background music button (bottom start corner; WhatsApp stays on the right) */
+/* Background music button: centered in the top header */
+.site-header .container { position: relative; }
 .sound-btn {
-  position: fixed; left: 18px; bottom: 22px; z-index: 30;
-  display: inline-flex; align-items: center; gap: 10px; padding: 9px 14px 9px 12px; border-radius: 99px;
-  background: rgba(20, 15, 11, .62); color: #f3ebe2; border: 1px solid rgba(243, 235, 226, .22);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  font-family: var(--caps); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px 8px 12px; border-radius: 99px;
+  background: transparent; color: inherit; border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
+  font-family: var(--caps); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; cursor: pointer; line-height: 1;
   transition: background .2s, border-color .2s, opacity .2s;
 }
-.sound-btn:hover { background: rgba(20, 15, 11, .8); border-color: rgba(243, 235, 226, .45); }
+.sound-btn.in-header { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.sound-btn:not(.in-header) { position: fixed; left: 18px; bottom: 22px; z-index: 30; background: rgba(20, 15, 11, .62); color: #f3ebe2; }
+.sound-btn:hover { background: color-mix(in srgb, currentColor 10%, transparent); border-color: color-mix(in srgb, currentColor 65%, transparent); }
 .sound-btn .bars { display: inline-flex; align-items: flex-end; gap: 2px; width: 16px; height: 12px; }
-.sound-btn .bars i { display: block; width: 3px; height: 4px; border-radius: 1px; background: currentColor; opacity: .7; }
+.sound-btn .bars i { display: block; width: 3px; height: 4px; border-radius: 1px; background: currentColor; opacity: .75; }
 .sound-btn.is-on .bars i { animation: soundBars .9s ease-in-out infinite; }
 .sound-btn.is-on .bars i:nth-child(2) { animation-delay: .15s; }
 .sound-btn.is-on .bars i:nth-child(3) { animation-delay: .3s; }
@@ -779,5 +780,12 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 @keyframes soundBars { 0%, 100% { height: 4px; } 50% { height: 12px; } }
 [dir="rtl"] .sound-btn { letter-spacing: 0; font-size: 12px; }
 .yt-hidden { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: .01; pointer-events: none; overflow: hidden; }
-@media (min-width: 960px) { .sound-btn { left: 28px; bottom: 28px; } }
+/* Phones: the header is tight, so the button is a round icon; the label stays for screen readers. */
+@media (max-width: 639px) {
+  .sound-btn.in-header { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
+  .sound-btn.in-header .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 479px) {
+  .booking-page .brand-inline { font-size: 14px; letter-spacing: .26em; }
+}
 @media (prefers-reduced-motion: reduce) { .sound-btn.is-on .bars i { animation: none; height: 8px; } }

@@ -18,7 +18,10 @@
     btn.type = "button";
     btn.innerHTML = '<span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="sound-label"></span>';
     btn.addEventListener("click", () => (playing ? stop() : start(true)));
-    document.body.appendChild(btn);
+    // Sits centered in the top header (client's request); falls back to the corner if there is no header.
+    const header = document.querySelector(".site-header .container");
+    (header || document.body).appendChild(btn);
+    if (header) btn.classList.add("in-header");
     render();
   }
   function render() {
