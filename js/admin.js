@@ -739,7 +739,7 @@
     return customers.find((c) => c.uid === b.uid) || customers.find((c) => c.phoneDigits && c.phoneDigits === d) || null;
   }
   function watchCustomersList() {
-    unsubCustomers = DB.watchCustomers((rows) => { customers = rows; renderCustomers(); renderList(); }, onWatchError);
+    unsubCustomers = DB.watchCustomers((rows) => { customers = rows; renderCustomers(); renderList(); renderPlanRequests(); }, onWatchError);
   }
   function custStats(c) {
     const all = upcoming.concat(past);
@@ -801,46 +801,71 @@
   function renderSessions() {
     const c = customers.find((x) => x.uid === sessUid); if (!c) return;
     const t = today();
+    const asc = (a, b) => (a.date + a.time).localeCompare(b.date + b.time);
     const mine = custBookings(c).filter((b) => b.status !== "cancelled");
-    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    const hist = mine.filter((b) => !(b.status === "confirmed" && b.date >= t)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-    const used = c.packTotal ? Math.max(0, c.packTotal - (c.balance ?? 0)) : 0;
+    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort(asc);
+    const rest = mine.filter((b) => !(b.status === "confirmed" && b.date >= t));
     $("sessTitle").textContent = tr("sess.title", { name: c.name || "" });
     $("sessWho").textContent = c.packTotal
       ? `${c.packName || ""} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}`
       : tr("cust.noPack");
-    const row = (b, label, actions) => {
-      const st = STATUS[b.status] || STATUS.confirmed;
-      return `<li class="sess-row">
+    const btn = (act, ref, label, cls = "btn-outline") => `<button class="btn ${cls} btn-sm" type="button" data-sact="${act}" data-ref="${esc(ref)}">${label}</button>`;
+    const row = (when, label, sub, badge, actions) => `<li class="sess-row">
         <div class="sess-main">
-          <span class="cd-when">${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}</span>
-          <span class="cd-svc">${label ? `<span class="sess-n">${label}</span> · ` : ""}${esc(svcName(b.service, b.serviceName))} · <span class="ref">${esc(b.ref)}</span></span>
+          <span class="cd-when">${when}</span>
+          <span class="cd-svc">${label ? `<span class="sess-n">${label}</span>${sub ? " · " : ""}` : ""}${sub}</span>
         </div>
-        <span class="badge ${st.cls}">${st.label}</span>
+        ${badge}
         <span class="cd-actions">${actions}</span>
       </li>`;
+    const bRow = (b, label, actions) => {
+      const st = STATUS[b.status] || STATUS.confirmed;
+      return row(`${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}`, label,
+        `${esc(svcName(b.service, b.serviceName))} · <span class="ref">${esc(b.ref)}</span>`,
+        `<span class="badge ${st.cls}">${st.label}</span>`, actions);
     };
-    const btn = (act, ref, label, cls = "btn-outline") => `<button class="btn ${cls} btn-sm" type="button" data-sact="${act}" data-ref="${esc(ref)}">${label}</button>`;
-    const upRows = up.map((b, i) => row(b,
-      c.packTotal ? tr("sess.num", { i: used + i + 1, total: c.packTotal }) : String(i + 1),
-      `<button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button>${btn("completed", b.ref, tr("act.done"))}${btn("cancelled", b.ref, tr("act.cancel"), "btn-danger")}`));
-    const histRows = hist.map((b) => row(b, "",
-      b.status === "confirmed"
-        ? `${btn("completed", b.ref, tr("act.done"))}${btn("no-show", b.ref, tr("act.noshow"))}`
-        : btn("confirmed", b.ref, tr("act.undo"))));
-    $("sessBody").innerHTML = `
-      <h4>${tr("cust.upcomingList")} (${up.length})</h4>
-      <ul class="sess-list">${upRows.join("") || `<li class="muted">${tr("acc.noUpcoming")}</li>`}</ul>
-      <h4>${tr("cust.history")} (${hist.length})</h4>
-      <ul class="sess-list">${histRows.join("") || `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
+    const upActions = (b) => `<button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button>${btn("completed", b.ref, tr("act.done"))}${btn("cancelled", b.ref, tr("act.cancel"), "btn-danger")}`;
+    const pastActions = (b) => b.status === "confirmed"
+      ? `${btn("completed", b.ref, tr("act.done"))}${btn("no-show", b.ref, tr("act.noshow"))}`
+      : b.status === "completed" && c.packTotal && !b.deducted
+        ? `${btn("deduct", b.ref, tr("sess.deduct"))}${btn("confirmed", b.ref, tr("act.undo"))}`
+        : btn("confirmed", b.ref, tr("act.undo"));
+
+    let html = "";
+    if (c.packTotal) {
+      // The whole pack, one line per session: used → scheduled → still to schedule.
+      const total = c.packTotal, balance = Math.max(0, c.balance ?? 0), used = Math.max(0, total - balance);
+      const done = rest.filter((b) => b.status === "completed" && b.deducted).sort(asc);
+      const other = rest.filter((b) => !(b.status === "completed" && b.deducted));
+      // Never list more lines than the pack holds, even if the balance was edited by hand.
+      const unscheduled = Math.max(0, total - Math.max(done.length, used) - up.length);
+      const lines = [];
+      let n = 0;
+      done.forEach((b) => { n++; lines.push(bRow(b, tr("sess.num", { i: n, total }), pastActions(b))); });
+      for (let i = done.length; i < used; i++) { n++; lines.push(row(tr("sess.usedEarlier"), tr("sess.num", { i: n, total }), "", `<span class="badge st-done">${tr("st.completed")}</span>`, "")); }
+      up.forEach((b) => { n++; lines.push(bRow(b, tr("sess.num", { i: n, total }), upActions(b))); });
+      for (let i = 0; i < unscheduled; i++) { n++; lines.push(row(`<span class="muted">${tr("sess.unscheduled")}</span>`, tr("sess.num", { i: n, total }), "", `<span class="badge">${tr("sess.toSchedule")}</span>`, btn("book", "", tr("sess.setDate"), "btn-primary"))); }
+      html += `<h4>${tr("sess.packList")} (${total})</h4><ul class="sess-list">${lines.join("")}</ul>`;
+      if (unscheduled > 1) html += `<button class="btn btn-outline btn-block" type="button" data-sact="schedule" style="margin-top:10px">${tr("cust.schedule")} (${unscheduled})</button>`;
+      if (other.length) html += `<h4>${tr("sess.other")} (${other.length})</h4><ul class="sess-list">${other.sort((a, b) => asc(b, a)).map((b) => bRow(b, "", pastActions(b))).join("")}</ul>`;
+    } else {
+      html += `<h4>${tr("cust.upcomingList")} (${up.length})</h4>
+        <ul class="sess-list">${up.map((b, i) => bRow(b, String(i + 1), upActions(b))).join("") || `<li class="muted">${tr("acc.noUpcoming")}</li>`}</ul>
+        <h4>${tr("cust.history")} (${rest.length})</h4>
+        <ul class="sess-list">${rest.sort((a, b) => asc(b, a)).map((b) => bRow(b, "", pastActions(b))).join("") || `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
+    }
+    $("sessBody").innerHTML = html;
   }
   $("sessClose").addEventListener("click", () => $("sessDialog").close());
   $("sessAdd").addEventListener("click", () => { const c = customers.find((x) => x.uid === sessUid); if (c) openNewBooking(c); });
   $("sessBody").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-sact]"); if (!btn) return;
-    const b = upcoming.concat(past).find((x) => x.ref === btn.dataset.ref); if (!b) return;
     const c = customers.find((x) => x.uid === sessUid);
-    const act = btn.dataset.sact;
+    let act = btn.dataset.sact;
+    if (act === "book") { if (c) openNewBooking(c); return; }
+    if (act === "schedule") { if (c) openSchedule(c); return; }
+    const b = upcoming.concat(past).find((x) => x.ref === btn.dataset.ref); if (!b) return;
+    if (act === "deduct") act = "completed"; // completed before the pack existed: take the session from the pack now
     if (act === "cancelled" && !confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
     btn.disabled = true;
     try {
@@ -1052,6 +1077,7 @@
       const when = r.createdAt && r.createdAt.toDate ? new Intl.DateTimeFormat(L.locale, { dateStyle: "medium", timeStyle: "short", timeZone: C.timeZone }).format(r.createdAt.toDate()) : "";
       const msg = tr("pr.msg", { name: r.name, plan: planName(r) });
       const act = (status, label, cls) => `<button class="btn ${cls || "btn-outline"} btn-sm" data-pr="${esc(r.id)}" data-pr-status="${status}">${label}</button>`;
+      const cust = customers.find((c) => c.uid === r.uid) || customers.find((c) => c.phoneDigits && DB && c.phoneDigits === DB.phoneDigits(r.phone));
       return `
         <article class="bk ${r.status === "cancelled" ? "is-cancelled" : ""}">
           <div class="bk-time">${L.money(r.price)}</div>
@@ -1068,12 +1094,15 @@
             ${phoneDigits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${phoneDigits}?text=${encodeURIComponent(msg)}">${tr("act.whatsapp")}</a>` : ""}
             ${r.status === "new" ? act("contacted", tr("pr.contacted")) : ""}
             ${r.status === "new" || r.status === "contacted" ? act("active", tr("pr.activate")) + act("cancelled", tr("act.cancel"), "btn-danger") : ""}
+            ${r.status === "active" && cust ? `<button class="btn btn-primary btn-sm" type="button" data-pr-sessions="${esc(cust.uid)}">${tr("pr.sessions")}</button>` : ""}
             ${r.status === "active" || r.status === "cancelled" ? act("contacted", tr("pr.reopen")) : ""}
           </div>
         </article>`;
     }).join("");
   }
   $("planRequestList").addEventListener("click", async (e) => {
+    const ps = e.target.closest("[data-pr-sessions]");
+    if (ps) { const c = customers.find((x) => x.uid === ps.dataset.prSessions); if (c) openSessions(c); return; }
     const b = e.target.closest("[data-pr]"); if (!b) return;
     b.disabled = true;
     try {
@@ -1082,8 +1111,10 @@
       if (b.dataset.prStatus === "active" && r) {
         const cust = customers.find((c) => c.uid === r.uid) || customers.find((c) => c.phoneDigits && c.phoneDigits === DB.phoneDigits(r.phone));
         if (cust) {
-          await DB.setCustomerPack(cust.uid, { packName: planName(r), packTotal: r.sessions, balance: r.sessions });
+          const pack = { packName: planName(r), packTotal: r.sessions, balance: r.sessions };
+          await DB.setCustomerPack(cust.uid, pack);
           toast(tr("pr.activatedPack", { n: r.sessions, name: cust.name }));
+          openSchedule({ ...cust, ...pack }); // set the dates of the sessions straight away
         } else {
           toast(tr("pr.noAccount"));
         }

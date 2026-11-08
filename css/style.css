@@ -878,3 +878,4 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .st-confirmed { background: rgba(94, 140, 106, .16); color: #2f6b45; }
 .st-done { background: var(--line); color: var(--ink); }
 :root[data-theme="dark"] .st-confirmed { background: rgba(94, 140, 106, .28); color: #a9d6b6; }
+.acc-unsched { margin: 10px 4px 0; font-size: 14px; }

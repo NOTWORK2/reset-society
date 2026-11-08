@@ -140,7 +140,10 @@
       $("accNext").innerHTML = `<p class="empty-note" style="padding:8px 4px">${tr("acc.noNext")}</p>`;
     }
     // Every scheduled session (the owner can plan a whole pack ahead).
-    $("accUpcomingWrap").hidden = upcoming.length < 2;
+    const unscheduled = hasPack ? Math.max(0, (c.balance ?? 0) - upcoming.length) : 0;
+    $("accUpcomingWrap").hidden = upcoming.length < 2 && !unscheduled;
+    $("accUnsched").hidden = !unscheduled;
+    $("accUnsched").textContent = unscheduled ? tr("acc.unscheduled", { n: L.sessions(unscheduled) }) : "";
     const used = hasPack ? Math.max(0, c.packTotal - (c.balance ?? 0)) : 0;
     $("accUpcoming").innerHTML = upcoming.map((b, i) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>${hasPack ? `<span class="acc-num">${tr("sess.num", { i: used + i + 1, total: c.packTotal })}</span>` : ""}<span class="badge st-confirmed">${tr("acc.booked")}</span></li>`).join("");
     const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 10);
