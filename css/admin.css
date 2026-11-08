@@ -177,3 +177,4 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
 .cd-svc { color: var(--muted); }
 .cd-actions { display: flex; gap: 6px; margin-inline-start: auto; }
 .cd-actions .btn { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.cust-next strong { color: var(--ink); font-weight: 500; }

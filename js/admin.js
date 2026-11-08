@@ -268,11 +268,21 @@
 
   /* ---------- new booking (phone / walk-in) ---------- */
   const dlg = $("newDialog");
-  $("newBookingBtn").addEventListener("click", () => {
+  function openNewBooking(cust) {
     $("nbDate").value = today(); $("nbDate").min = today();
     $("newError").textContent = "";
+    $("newForm").reset(); $("nbDate").value = today();
+    if (cust) {
+      $("nbName").value = cust.name || "";
+      $("nbPhone").value = cust.phone || (cust.phoneDigits ? "+" + cust.phoneDigits : "");
+      // Default to the service their pack is for.
+      const svcId = cust.packTotal ? ((C.plans && C.plans.serviceId) || "full-recovery") : null;
+      if (svcId && [...$("nbService").options].some((o) => o.value === svcId)) $("nbService").value = svcId;
+    }
     dlg.showModal();
-  });
+    setTimeout(() => $(cust ? "nbDate" : "nbName").focus(), 50);
+  }
+  $("newBookingBtn").addEventListener("click", () => openNewBooking(null));
   $("newCancel").addEventListener("click", () => dlg.close());
   $("newForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -728,8 +738,8 @@
     const mine = all.filter((b) => b.uid === c.uid || (c.phoneDigits && digitsOf(b.phone) === c.phoneDigits));
     const t = today();
     const visits = mine.filter((b) => b.status === "completed" || (b.status === "confirmed" && b.date < t)).length;
-    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).length;
-    return { visits, up };
+    const ups = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    return { visits, up: ups.length, next: ups[0] || null };
   }
   function custBookings(c) {
     return upcoming.concat(past).filter((b) => b.uid === c.uid || (c.phoneDigits && digitsOf(b.phone) === c.phoneDigits));
@@ -753,10 +763,12 @@
             <div class="bk-top"><strong>${esc(c.name || "")}</strong>${pack}</div>
             <div class="bk-meta"><a class="ltr" href="tel:+${esc(digits)}">${esc(c.phone || "")}</a>${c.hasEmail && c.email ? ` · <a class="ltr" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ""}</div>
             <div class="bk-meta">${tr("cust.upcoming", { n: st.up })}${when ? ` · ${tr("cust.registered", { date: when })}` : ""}</div>
+            <div class="bk-meta cust-next">${st.next ? tr("cust.next", { when: `<strong>${esc(fmtDate(st.next.date))} · ${esc(fmtTime(st.next.time))}</strong> · ${esc(svcName(st.next.service, st.next.serviceName))}` }) : tr("cust.noNext")}</div>
           </div>
           <div class="bk-actions">
             ${digits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}">${tr("act.whatsapp")}</a>` : ""}
-            <button class="btn btn-primary btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
+            <button class="btn btn-primary btn-sm" type="button" data-book-for="${esc(c.uid)}">${tr("cust.bookNext")}</button>
+            <button class="btn btn-outline btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
             <button class="btn btn-outline btn-sm" type="button" data-cust-toggle="${esc(c.uid)}" aria-expanded="false">${tr("cust.details")}</button>
           </div>
           <div class="cust-details" id="cust-${esc(c.uid)}" hidden>${custDetailsHTML(c)}</div>
@@ -779,6 +791,8 @@
       <ul class="cd-list">${hist.length ? hist.map((b) => row(b, `<span class="badge ${(STATUS[b.status] || STATUS.confirmed).cls}">${(STATUS[b.status] || STATUS.confirmed).label}</span>`)).join("") : `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
   }
   $("customerList").addEventListener("click", async (e) => {
+    const bf = e.target.closest("[data-book-for]");
+    if (bf) { const c = customers.find((x) => x.uid === bf.dataset.bookFor); if (c) openNewBooking(c); return; }
     const tg = e.target.closest("[data-cust-toggle]");
     if (tg) {
       const id = tg.dataset.custToggle, box = $("cust-" + id);
