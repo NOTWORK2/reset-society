@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611081824" />
-  <link rel="stylesheet" href="css/admin.css?v=202611081824" />
-  <script src="js/i18n.js?v=202611081824"></script>
-  <script src="js/theme.js?v=202611081824"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611081833" />
+  <link rel="stylesheet" href="css/admin.css?v=202611081833" />
+  <script src="js/i18n.js?v=202611081833"></script>
+  <script src="js/theme.js?v=202611081833"></script>
 </head>
 <body class="admin-page">
   <span hidden data-i18n-title="admin.pageTitle"></span>
@@ -205,11 +205,11 @@
           <section class="set-card">
             <h2 data-i18n="set.music">Background music</h2>
             <p class="muted small" data-i18n="set.musicIntro">Music plays on the website with a SOUND ON / OFF button at the bottom. Browsers start it after the visitor's first tap.</p>
-            <label class="check" style="margin-bottom:16px"><input type="checkbox" id="muEnabled" /> <span data-i18n="set.musicEnabled">Turn background music on</span></label>
             <div class="grid-2">
               <div class="field">
                 <label for="muSource" data-i18n="set.musicSource">Source</label>
                 <select class="input" id="muSource" style="appearance:auto">
+                  <option value="none" data-i18n="set.musicNone">No music (off)</option>
                   <option value="youtube" data-i18n="set.musicYoutube">YouTube link</option>
                   <option value="url" data-i18n="set.musicUrl">Audio file link (MP3)</option>
                   <option value="file" data-i18n="set.musicFile">Upload audio file</option>
@@ -230,6 +230,7 @@
               <span class="muted small" id="muFileName" style="margin-inline-start:10px"></span>
               <p class="muted small" style="margin:8px 0 0" data-i18n="set.musicHint">MP3 or M4A, up to 8 MB. A 2–3 minute track in MP3 at 128 kbps is about 3 MB.</p>
             </div>
+            <p class="set-status" id="muStatus"></p>
             <p class="form-error" id="muError" role="alert"></p>
             <div class="set-actions">
               <button class="btn btn-outline btn-sm" type="button" id="muPreview" data-i18n="set.musicPreview">Preview</button>
@@ -333,9 +334,9 @@
     </form>
   </dialog>
 
-  <script src="js/config.js?v=202611081824"></script>
-  <script src="js/firebase-config.js?v=202611081824"></script>
-  <script src="js/common.js?v=202611081824"></script>
-  <script src="js/admin.js?v=202611081824"></script>
+  <script src="js/config.js?v=202611081833"></script>
+  <script src="js/firebase-config.js?v=202611081833"></script>
+  <script src="js/common.js?v=202611081833"></script>
+  <script src="js/admin.js?v=202611081833"></script>
 </body>
 </html>

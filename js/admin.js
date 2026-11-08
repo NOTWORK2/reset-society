@@ -628,8 +628,8 @@
   const ytId = (url) => { const m = String(url || "").match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/); return m ? m[1] : null; };
   function renderMusic() {
     const m = C.music || {};
-    $("muEnabled").checked = !!m.enabled;
-    $("muSource").value = m.type || "youtube";
+    $("muSource").value = m.enabled && m.type ? m.type : "none";
+    $("muStatus").textContent = tr(m.enabled && m.type ? "set.musicIsOn" : "set.musicIsOff");
     $("muUrl").value = m.type === "file" ? "" : (m.url || "");
     $("muVolume").value = m.volume ?? 40; $("muVolVal").textContent = m.volume ?? 40;
     $("muFileName").textContent = m.type === "file" && m.fileName ? m.fileName : "";
@@ -639,11 +639,12 @@
   }
   function updateMusicFields() {
     const type = $("muSource").value;
-    $("muUrlField").hidden = type === "file";
+    $("muUrlField").hidden = type === "file" || type === "none";
     $("muFileField").hidden = type !== "file";
+    $("muVolume").closest(".field").hidden = type === "none";
     $("muUrlLabel").textContent = tr(type === "youtube" ? "set.musicYoutube" : "set.musicUrl");
     $("muUrl").placeholder = type === "youtube" ? "https://www.youtube.com/watch?v=…" : "https://…/music.mp3";
-    $("muPreview").hidden = type === "youtube";
+    $("muPreview").hidden = type === "youtube" || type === "none";
   }
   $("muSource").addEventListener("change", updateMusicFields);
   $("muVolume").addEventListener("input", (e) => { $("muVolVal").textContent = e.target.value; if (muPreviewAudio) muPreviewAudio.volume = e.target.value / 100; });
@@ -670,9 +671,13 @@
     const btn = e.currentTarget;
     const type = $("muSource").value, url = $("muUrl").value.trim();
     const old = C.music || {};
-    const music = { enabled: $("muEnabled").checked, type, volume: Number($("muVolume").value) || 40 };
+    const music = { enabled: type !== "none", type: type === "none" ? (old.type || "youtube") : type, volume: Number($("muVolume").value) || 40 };
     $("muError").textContent = "";
-    if (type === "youtube") {
+    if (type === "none") {
+      // Keep the last link/file so switching back on is one click.
+      if (old.url) music.url = old.url;
+      if (old.fileId) { music.fileId = old.fileId; music.fileName = old.fileName; }
+    } else if (type === "youtube") {
       if (!ytId(url)) { $("muError").textContent = tr("set.musicErrYoutube"); return; }
       music.url = url;
     } else if (type === "url") {
