@@ -306,11 +306,12 @@ async function getCustomer(uid) {
 
 /* Bookings matched by phone (any device, walk-ins added by the owner) or by this account's uid. */
 async function customerBookings(uid, digits) {
-  const byPhone = digits ? await getDocs(query(collection(db, "bookings"), where("phoneDigits", "==", digits), orderBy("date", "desc"), limit(400))) : null;
-  const byUid = await getDocs(query(collection(db, "bookings"), where("uid", "==", uid), orderBy("date", "desc"), limit(400)));
+  // No orderBy here: a filter + sort on different fields would need a composite index in Firestore.
+  const byPhone = digits ? await getDocs(query(collection(db, "bookings"), where("phoneDigits", "==", digits), limit(400))) : null;
+  const byUid = await getDocs(query(collection(db, "bookings"), where("uid", "==", uid), limit(400)));
   const seen = new Map();
   [byPhone, byUid].forEach((snap) => snap && snap.forEach((d) => seen.set(d.id, d.data())));
-  return [...seen.values()];
+  return [...seen.values()].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
 }
 
 /* ---------- background music files (stored in Firestore chunks; no Storage plan needed) ---------- */
