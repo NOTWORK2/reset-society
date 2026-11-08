@@ -80,6 +80,28 @@
       <span class="price-pill">${L.money(p.price)}</span>`;
   }
 
+  /* ---------- signed-in customer: details come from the account ---------- */
+  let account = null;
+  const accountReady = (async () => {
+    const db = await window.RS_DB; if (!db) return;
+    await db.auth.authStateReady();
+    const u = db.auth.currentUser; if (!u || u.isAnonymous) return;
+    const c = await db.getCustomer(u.uid).catch(() => null); if (!c) return;
+    account = { name: c.name || u.displayName || "", digits: c.phoneDigits || "", email: c.hasEmail ? c.email : "" };
+  })();
+  const ccFor = (digits) => COUNTRIES.map((x) => x[0]).sort((a, b) => b.length - a.length).find((code) => digits.startsWith(code));
+  function fillFromAccount() {
+    if (!account) return false;
+    $("jName").value = account.name;
+    if (account.digits) {
+      const cc = ccFor(account.digits);
+      if (cc) { $("jCc").value = cc; $("jPhone").value = account.digits.slice(cc.length); } else $("jPhone").value = account.digits;
+    }
+    $("jEmail").value = account.email || "";
+    $("joinAs").innerHTML = `${tr("join.as", { name: `<strong>${esc(account.name)}</strong>` })} · <span class="ltr">+${esc(account.digits)}</span> · <a href="#" data-join-edit>${tr("book.edit")}</a>`;
+    return true;
+  }
+
   /* ---------- join dialog (created once, on first use) ---------- */
   let dlg = null, current = null;
   const $ = (id) => document.getElementById(id);
@@ -96,6 +118,7 @@
         <div id="joinFormView">
           <h2 id="joinTitle">${tr("details.title")}</h2>
           <div class="join-plan" id="joinPlan"></div>
+          <p class="pay-as join-as" id="joinAs" hidden></p>
           <div class="field" id="j-name">
             <label for="jName">${tr("f.name")}</label>
             <input class="input" id="jName" autocomplete="name" maxlength="100" required />
@@ -137,6 +160,7 @@
 
     dlg.addEventListener("click", (e) => {
       if (e.target === dlg || e.target.closest("[data-join-close]")) dlg.close();
+      if (e.target.closest("[data-join-edit]")) { e.preventDefault(); $("joinFormView").classList.remove("as-account"); $("jName").focus(); }
     });
 
     $("joinForm").addEventListener("submit", async (e) => {
@@ -185,7 +209,7 @@
     });
   }
 
-  function openJoin(p, tab) {
+  async function openJoin(p, tab) {
     if (!p) return;
     if (!dlg) buildDialog();
     current = { p, tab };
@@ -195,8 +219,14 @@
     RS.fillMedia($("joinPlan"));
     $("joinError").textContent = "";
     ["j-name", "j-phone", "j-email"].forEach((id) => $(id).classList.remove("invalid"));
+    // Registered customer: show "Requesting as …" instead of the empty form.
+    await Promise.race([accountReady, new Promise((r) => setTimeout(r, 1500))]);
+    const compact = fillFromAccount();
+    $("joinFormView").classList.toggle("as-account", compact);
+    $("joinAs").hidden = !compact;
+    $("joinTitle").textContent = tr(compact ? "join.confirmTitle" : "details.title");
     if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
-    setTimeout(() => $("jName").focus(), 50);
+    setTimeout(() => (compact ? $("joinSubmit") : $("jName")).focus(), 50);
   }
 
   window.RS_PLANS = {

@@ -863,3 +863,5 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .pay-as a { color: var(--ink); }
 .pay-terms { margin: 6px 2px 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
 .pay-terms .link-btn { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
+.join-as { margin: -6px 0 16px; }
+#joinFormView.as-account .field { display: none; }
