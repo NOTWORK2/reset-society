@@ -6,7 +6,7 @@
 (function () {
   const DICT = {
     en: {
-      "lang.switch": "عربي",
+      "lang.switch": "AR",
       "lang.switchAria": "التبديل إلى العربية",
       "theme.dark": "Switch to dark mode",
       "theme.light": "Switch to light mode",
@@ -454,7 +454,7 @@
     },
 
     ar: {
-      "lang.switch": "English",
+      "lang.switch": "EN",
       "lang.switchAria": "Switch to English",
       "theme.dark": "تفعيل الوضع الداكن",
       "theme.light": "تفعيل الوضع الفاتح",

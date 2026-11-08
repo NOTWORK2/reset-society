@@ -527,7 +527,9 @@ dialog.policy::backdrop { background: rgba(30,22,16,.55); }
   :root { --header-h: 84px; }
   .container { padding: 0 40px; }
   .menu-btn { display: none; }
-  .nav-links { display: flex; }
+  .nav-links { display: flex; order: 2; }
+  .header-tools { order: 3; }
+  [dir="rtl"] .nav-links { gap: 26px; }
   .section { padding: 120px 0; }
   .services-grid { grid-template-columns: repeat(4, 1fr); }
   .steps { grid-template-columns: repeat(4, 1fr); }
@@ -569,8 +571,8 @@ dialog.policy::backdrop { background: rgba(30,22,16,.55); }
 
 .lang-btn {
   background: none; border: 1px solid currentColor; color: inherit; border-radius: 99px;
-  padding: 7px 13px; font-size: 13px; line-height: 1; opacity: .85; cursor: pointer;
-  font-family: "IBM Plex Sans Arabic", "DM Sans", sans-serif; letter-spacing: 0; text-transform: none;
+  padding: 8px 11px; font-size: 12px; line-height: 1; opacity: .85; cursor: pointer;
+  font-family: "DM Sans", sans-serif; letter-spacing: .12em; text-transform: uppercase; direction: ltr;
 }
 .lang-btn:hover { opacity: 1; }
 .lang-btn[lang="en"] { font-family: "DM Sans", sans-serif; }
@@ -879,3 +881,32 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .st-done { background: var(--line); color: var(--ink); }
 :root[data-theme="dark"] .st-confirmed { background: rgba(94, 140, 106, .28); color: #a9d6b6; }
 .acc-unsched { margin: 10px 4px 0; font-size: 14px; }
+
+/* Desktop: the sound button sits in the header flow between the brand and the links, so long Arabic
+   menus never run into it (on phones it stays centered as a round icon). */
+@media (min-width: 960px) {
+  .site-header .sound-btn.in-header { position: static; transform: none; margin-inline: auto; order: 1; }
+}
+/* Laptop widths: keep every link on one line and make room for the sound button. */
+.nav-links a, .sound-btn { white-space: nowrap; }
+@media (min-width: 960px) {
+  .site-header .container { gap: 24px; }
+  .site-header .sound-btn.in-header { flex: none; }
+  .site-header .brand { flex: none; }
+}
+@media (min-width: 1280px) and (max-width: 1439px) {
+  :root:not([dir="rtl"]) .nav-links { gap: 24px; }
+}
+@media (min-width: 960px) and (max-width: 1279px) {
+  .nav-links { gap: 20px; }
+  [dir="rtl"] .nav-links { gap: 18px; }
+}
+/* Icon-only sound button while the header is tight: English labels are long, so up to 1440px there. */
+@media (min-width: 960px) and (max-width: 1279px) {
+  .site-header .sound-btn.in-header { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
+  .site-header .sound-btn.in-header .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (min-width: 1280px) and (max-width: 1439px) {
+  :root:not([dir="rtl"]) .site-header .sound-btn.in-header { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
+  :root:not([dir="rtl"]) .site-header .sound-btn.in-header .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
