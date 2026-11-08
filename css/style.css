@@ -855,3 +855,5 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .next-main span { font-size: 14px; }
 .next-main small { font-size: 12px; }
 @media (max-width: 420px) { .next-card { grid-template-columns: 76px 1fr; } .next-card .badge { grid-column: 2; justify-self: start; } }
+.owner-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+#accStatusText { line-height: 1.6; }
