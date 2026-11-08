@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611082001" />
-  <script src="js/i18n.js?v=202611082001"></script>
-  <script src="js/theme.js?v=202611082001"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611082012" />
+  <script src="js/i18n.js?v=202611082012"></script>
+  <script src="js/theme.js?v=202611082012"></script>
 </head>
 <body class="booking-page">
   <header class="site-header is-solid">
@@ -185,12 +185,14 @@
             <button class="back-btn" type="button" data-back data-i18n-aria="back"><span data-icon="back" style="display:contents"></span></button>
             <h1 id="h-payment" data-i18n="pay.title">Payment</h1>
             <p data-i18n="pay.sub">Choose your payment method</p>
+            <p class="pay-as" id="payAs" hidden></p>
           </div>
           <div class="step-body">
             <div class="summary summary-in-step" data-summary="basic"></div>
             <h2 class="section-title" data-i18n="pay.method">Payment Method</h2>
             <div role="radiogroup" data-i18n-aria="pay.method" id="payOptions"></div>
             <div class="total"><span data-i18n="total">Total</span><strong data-bind="price"></strong></div>
+            <p class="pay-terms"><span data-i18n="pay.terms">By confirming you agree to the booking and cancellation policy.</span> <button class="link-btn" type="button" data-policy data-i18n="f.viewPolicy">View Policy</button></p>
           </div>
           <div class="step-actions">
             <button class="btn btn-primary btn-block" type="button" id="confirmBtn"><span data-i18n="confirm">Confirm Booking</span> <span data-icon="arrow" style="display:contents"></span></button>
@@ -241,11 +243,11 @@
     </div>
   </dialog>
 
-  <script src="js/config.js?v=202611082001"></script>
-  <script src="js/firebase-config.js?v=202611082001"></script>
-  <script src="js/common.js?v=202611082001"></script>
-  <script src="js/music.js?v=202611082001"></script>
-  <script src="js/plans-core.js?v=202611082001"></script>
-  <script src="js/booking.js?v=202611082001"></script>
+  <script src="js/config.js?v=202611082012"></script>
+  <script src="js/firebase-config.js?v=202611082012"></script>
+  <script src="js/common.js?v=202611082012"></script>
+  <script src="js/music.js?v=202611082012"></script>
+  <script src="js/plans-core.js?v=202611082012"></script>
+  <script src="js/booking.js?v=202611082012"></script>
 </body>
 </html>

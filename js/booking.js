@@ -287,26 +287,42 @@
     $("agree").checked = !!state.agree;
     prefillFromAccount();
   }
-  // A signed-in customer gets their name and phone filled in.
-  let prefilled = false;
-  async function prefillFromAccount() {
-    if (prefilled) return;
+  /* Signed-in customer: their account fills the booking details, so the "Your details" step is skipped
+     (they can still open it from the payment step to change something for this booking). */
+  let account = null;
+  const ccFor = (digits) => COUNTRIES.map((x) => x[1]).sort((a, b) => b.length - a.length).find((code) => digits.startsWith(code));
+  function applyAccount() {
+    if (!account) return;
+    if (!state.name) state.name = account.name;
+    if (!state.phone && account.digits) {
+      const cc = ccFor(account.digits);
+      state.cc = cc || "971";
+      state.phone = cc ? account.digits.slice(cc.length) : account.digits;
+    }
+    if (!state.email && account.email) state.email = account.email;
+    state.agree = true; // accepted the policy when creating the account
+    save();
+  }
+  async function loadAccount() {
     const db = await window.RS_DB; if (!db) return;
     await db.auth.authStateReady();
     const u = db.auth.currentUser;
-    if (!u || u.isAnonymous) { $("loginHint").hidden = false; return; }
+    if (!u || u.isAnonymous) { account = null; $("loginHint").hidden = false; renderPayAs(); return; }
     $("loginHint").hidden = true;
     const c = await db.getCustomer(u.uid).catch(() => null);
     if (!c) return;
-    prefilled = true;
-    if (!$("name").value) $("name").value = c.name || u.displayName || "";
-    if (!$("phone").value && c.phoneDigits) {
-      const cc = COUNTRIES.map((x) => x[1]).sort((a, b) => b.length - a.length).find((code) => c.phoneDigits.startsWith(code));
-      if (cc) { $("cc").value = cc; $("phone").value = c.phoneDigits.slice(cc.length); } else $("phone").value = c.phoneDigits;
-    }
-    if (!$("email").value && c.hasEmail) $("email").value = c.email;
-    saveDetails();
+    account = { uid: u.uid, name: c.name || u.displayName || "", digits: c.phoneDigits || "", email: c.hasEmail ? c.email : "" };
+    applyAccount();
+    if (current() === "details") fillDetails();
+    renderPayAs();
   }
+  const accountReady = loadAccount();
+  function renderPayAs() {
+    const el = $("payAs"); if (!el) return;
+    el.hidden = !account;
+    if (account) el.innerHTML = `${tr("book.as", { name: `<strong>${esc(state.name || account.name)}</strong>` })} · <span class="ltr">${esc(fullPhone())}</span> · <a href="#details" data-edit-details>${tr("book.edit")}</a>`;
+  }
+  function prefillFromAccount() { /* kept for callers; details now come from applyAccount() */ }
 
   /* ---------- navigation ---------- */
   function current() { const h = location.hash.slice(1); return STEPS.includes(h) ? h : "service"; }
@@ -323,7 +339,7 @@
     }
     if (step === "confirmed") renderConfirmMode();
     if (step === "details") fillDetails();
-    if (step === "payment") renderPayment();
+    if (step === "payment") { renderPayment(); renderPayAs(); }
     renderBindings();
 
     document.querySelectorAll(".step").forEach((el) => el.classList.toggle("active", el.dataset.step === step));
@@ -341,6 +357,10 @@
     const step = current();
     if (step === "service" && !service()) { toast(tr("toast.chooseSession")); return; }
     if (step === "datetime" && !state.time) { toast(tr("toast.chooseTime")); return; }
+    if (step === "datetime" && account) {
+      applyAccount();
+      if (detailsValid()) { go("payment"); return; }
+    }
     go(STEPS[i + 1]);
   }
 
@@ -494,8 +514,10 @@
     document.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", next));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => {
       const i = STEPS.indexOf(current());
+      if (current() === "payment" && account) { go("datetime"); return; }
       go(STEPS[Math.max(0, i - 1)]);
     }));
+    document.addEventListener("click", (e) => { if (e.target.closest("[data-edit-details]")) { e.preventDefault(); go("details"); } });
 
     $("calGrid").addEventListener("click", (e) => {
       const b = e.target.closest(".cal-day"); if (!b || b.disabled) return;

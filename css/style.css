@@ -857,3 +857,9 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 @media (max-width: 420px) { .next-card { grid-template-columns: 76px 1fr; } .next-card .badge { grid-column: 2; justify-self: start; } }
 .owner-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
 #accStatusText { line-height: 1.6; }
+
+.pay-as { margin: 12px 0 0; font-size: 14px; color: var(--muted); line-height: 1.6; }
+.pay-as strong { color: var(--ink); font-weight: 500; }
+.pay-as a { color: var(--ink); }
+.pay-terms { margin: 6px 2px 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.pay-terms .link-btn { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
