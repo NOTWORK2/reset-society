@@ -157,8 +157,7 @@
       // The owner's account is not a customer account: explain, and offer the admin or a sign-out.
       if (await DB.isAdmin(user)) {
         $("accStatusText").innerHTML = `${tr("acc.ownerNote", { email: esc(user.email || "") })}
-          <span class="owner-actions"><a class="btn btn-primary btn-sm" href="admin.html">${tr("acc.goAdmin")}</a>
-          <button class="btn btn-outline btn-sm" type="button" id="ownerSignOut">${tr("admin.signOut")}</button></span>`;
+          <span class="owner-actions"><button class="btn btn-primary btn-sm" type="button" id="ownerSignOut">${tr("admin.signOut")}</button></span>`;
         $("ownerSignOut").addEventListener("click", () => DB.signOut());
         view("accStatus");
         return;
