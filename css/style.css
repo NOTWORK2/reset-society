@@ -230,7 +230,9 @@ body.menu-open { overflow: hidden; }
   padding-left: .26em; /* balances trailing letter-spacing */
 }
 .hero h1 span { display: block; }
-.hero-sub { margin: 26px 0 40px; font-size: clamp(12px, 3.2vw, 15px); letter-spacing: .34em; padding-left: .34em; }
+.hero-logo { margin: 0; padding: 0; line-height: 0; }
+.hero-logo img { display: block; width: min(74vw, 400px); height: auto; margin: 0 auto; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .35)); }
+.hero-sub { margin: 30px 0 40px; font-size: clamp(11px, 2.9vw, 13px); letter-spacing: .34em; padding-left: .34em; }
 .hero-actions { display: grid; gap: 14px; width: 100%; max-width: 380px; }
 .hero-foot {
   position: absolute; left: 0; right: 0; bottom: 28px;
@@ -591,6 +593,7 @@ html[dir="rtl"] {
 [dir="rtl"] .hero-sub, [dir="rtl"] .steps .num, [dir="rtl"] .soon, [dir="rtl"] .day-title,
 [dir="rtl"] .side-title, [dir="rtl"] .eyebrow { letter-spacing: 0; text-transform: none; }
 [dir="rtl"] .hero h1 { padding-left: 0; line-height: 1.5; font-weight: 400; }
+[dir="rtl"] .hero-logo { line-height: 0; }
 [dir="rtl"] .hero-sub { padding-left: 0; font-size: clamp(15px, 4vw, 18px); }
 [dir="rtl"] .hero-foot, [dir="rtl"] .eyebrow, [dir="rtl"] .banner-center .caps, [dir="rtl"] .see-you { font-size: 15px; }
 [dir="rtl"] .section h2, [dir="rtl"] .banner h1, [dir="rtl"] .step-head h1, [dir="rtl"] .service-card h3,
