@@ -82,8 +82,9 @@
   });
   $("accSignOut").addEventListener("click", () => DB.signOut());
 
-  /* ---------- journey ---------- */
+  /* ---------- member dashboard ---------- */
   function monthKey(d) { return d.slice(0, 7); }
+  const svcOf = (b) => C.services.find((x) => x.id === b.service);
   async function renderJourney(user) {
     view("accStatus"); $("accStatusText").textContent = tr("acc.loading");
     const c = await DB.getCustomer(user.uid).catch(() => null);
@@ -97,26 +98,49 @@
     const visits = rows.filter((b) => b.status === "completed" || (b.status === "confirmed" && b.date < t));
     const upcoming = rows.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     const thisMonth = visits.filter((b) => monthKey(b.date) === monthKey(t)).length;
-    const counts = {};
-    visits.forEach((b) => { counts[b.service] = (counts[b.service] || 0) + 1; });
-    const favId = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-    const fav = favId ? svcName({ service: favId }) : "—";
-    const first = visits.length ? visits.map((b) => b.date).sort()[0] : null;
 
-    $("statVisits").textContent = visits.length;
-    $("statMonth").textContent = thisMonth;
-    $("statFav").textContent = fav;
-    $("statSince").textContent = first ? new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", month: "short", year: "numeric" }).format(toUTC(first)) : "—";
+    // Pack / membership card
+    const hasPack = !!(c && c.packTotal > 0);
+    $("mcNums").hidden = !hasPack; $("mcBar").hidden = !hasPack; $("mcNoPack").hidden = hasPack;
+    if (hasPack) {
+      const total = c.packTotal, left = Math.max(0, Math.min(total, c.balance ?? 0)), used = total - left;
+      $("mcPack").textContent = c.packName || L.sessions(total);
+      $("mcRemaining").textContent = String(left).padStart(2, "0");
+      $("mcUsed").textContent = String(used).padStart(2, "0");
+      $("mcTotal").textContent = String(total).padStart(2, "0");
+      const pct = Math.round((left / total) * 100);
+      $("mcBar").querySelector("span").style.width = pct + "%";
+      $("mcBar").setAttribute("aria-valuenow", String(pct));
+    } else {
+      $("mcPack").textContent = tr("acc.noPack");
+    }
+    const since = c && c.createdAt && c.createdAt.toDate ? c.createdAt.toDate() : null;
+    $("mcSince").textContent = since ? tr("acc.memberSince", { date: new Intl.DateTimeFormat(L.locale, { month: "short", year: "numeric", timeZone: C.timeZone }).format(since) }) : "";
 
-    const line = visits.length === 0 ? tr("acc.msgNew") : thisMonth >= 4 ? tr("acc.msgStrong", { sessions: L.sessions(thisMonth) }) : thisMonth > 0 ? tr("acc.msgGood", { sessions: L.sessions(thisMonth) }) : tr("acc.msgBack");
-    $("accLine").textContent = line;
+    $("statVisits").textContent = String(visits.length).padStart(2, "0");
+    $("statUpcoming").textContent = String(upcoming.length).padStart(2, "0");
+    $("accLine").textContent = visits.length === 0 ? tr("acc.msgNew") : thisMonth >= 4 ? tr("acc.msgStrong", { sessions: L.sessions(thisMonth) }) : thisMonth > 0 ? tr("acc.msgGood", { sessions: L.sessions(thisMonth) }) : tr("acc.msgBack");
 
-    $("accUpcoming").innerHTML = upcoming.length
-      ? upcoming.slice(0, 5).map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span><span class="ref">${esc(b.ref)}</span></li>`).join("")
-      : `<li class="muted">${tr("acc.noUpcoming")}</li>`;
-    const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 8);
+    const next = upcoming[0];
+    if (next) {
+      const s = svcOf(next);
+      $("accNext").innerHTML = `
+        <div class="next-card">
+          <img ${RS.imgAttrs(s ? s.image : "assets/img/leaves-wall.jpg")} alt="" />
+          <div class="next-main">
+            <strong>${esc(svcName(next))}</strong>
+            <span>${esc(fmtDate(next.date))} · ${esc(L.time(next.time))}</span>
+            <small class="muted">${esc(s ? (L.field(s, "short") || "") : "")}</small>
+          </div>
+          <span class="badge st-confirmed">${tr("acc.booked")}</span>
+        </div>`;
+      RS.fillMedia($("accNext"));
+    } else {
+      $("accNext").innerHTML = `<p class="empty-note" style="padding:8px 4px">${tr("acc.noNext")}</p>`;
+    }
+    const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 10);
     $("accHistory").innerHTML = recent.length
-      ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))}</span></li>`).join("")
+      ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span></li>`).join("")
       : `<li class="muted">${tr("acc.noHistory")}</li>`;
     $("accWa").href = waLink(tr("acc.waMsg", { name }));
     view("accJourney");

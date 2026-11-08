@@ -16,7 +16,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
-  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc, runTransaction
+  writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc, runTransaction, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, connectAuthEmulator, signInAnonymously, signInWithEmailAndPassword, signOut,
@@ -128,12 +128,32 @@ function watchBookings({ from, to, max = 300 }, cb, onError) {
   return onSnapshot(query(...parts), (snap) => cb(snap.docs.map((d) => d.data())), onError);
 }
 
-async function setStatus(booking, status) {
+/* customerUid: the registered customer this booking belongs to (matched by phone in the admin).
+   Marking a booking Done uses one session from their pack; undoing gives it back. */
+async function setStatus(booking, status, customerUid) {
   const batch = writeBatch(db);
-  batch.update(doc(db, "bookings", booking.ref), { status, updatedAt: serverTimestamp() });
+  const upd = { status, updatedAt: serverTimestamp() };
+  if (customerUid && status === "completed" && !booking.deducted) {
+    upd.deducted = true; upd.deductedUid = customerUid;
+    batch.update(doc(db, "customers", customerUid), { balance: increment(-1), balanceUpdatedAt: serverTimestamp() });
+  } else if (booking.deducted && status !== "completed") {
+    upd.deducted = false;
+    batch.update(doc(db, "customers", booking.deductedUid || customerUid), { balance: increment(1), balanceUpdatedAt: serverTimestamp() });
+  }
+  batch.update(doc(db, "bookings", booking.ref), upd);
   // Cancelling frees the place so someone else can book it.
   if (status === "cancelled" && booking.lockId) batch.delete(doc(db, "slotLocks", booking.lockId));
   await batch.commit();
+}
+
+function watchCustomers(cb, onError) {
+  return onSnapshot(query(collection(db, "customers"), orderBy("createdAt", "desc"), limit(500)),
+    (snap) => cb(snap.docs.map((d) => ({ uid: d.id, ...d.data() }))), onError);
+}
+
+/* Owner assigns a pack / membership to a customer: name, total sessions and remaining sessions. */
+async function setCustomerPack(uid, { packName, packTotal, balance }) {
+  await updateDoc(doc(db, "customers", uid), { packName, packTotal, balance, packAssignedAt: serverTimestamp(), balanceUpdatedAt: serverTimestamp() });
 }
 
 function watchDay(date, cb, onError) {
@@ -374,6 +394,8 @@ window.__rsDbResolve({
   deleteMedia,
   watchPlanRequests,
   setPlanRequestStatus,
+  watchCustomers,
+  setCustomerPack,
   uploadAudio,
   deleteAudio
 });

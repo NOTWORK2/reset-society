@@ -818,3 +818,40 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .login-hint { margin: 10px 0 0; font-size: 14px; }
 .login-hint a { color: var(--ink); }
 @media (min-width: 640px) { .journey-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Member dashboard card (from the client's mockup) */
+.acc-banner-sub { font-size: 11px; margin: 12px 0 0; opacity: .85; }
+.member-card {
+  position: relative; margin-top: 18px; padding: 20px 20px 18px; border-radius: 18px; color: #f3ebe2;
+  background: radial-gradient(120% 140% at 100% 0%, #5a4635 0%, #352a21 45%, #241b15 100%);
+  box-shadow: var(--shadow); isolation: isolate; overflow: hidden;
+}
+.member-card::after { content: ""; position: absolute; inset: 0; z-index: -1; background: url("../assets/img/leaves-wall.jpg") right top / cover no-repeat; opacity: .14; }
+.mc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.mc-brand { display: block; font-family: var(--caps); letter-spacing: .3em; text-transform: uppercase; font-size: 12px; }
+.mc-club { display: block; font-size: 9px; opacity: .7; margin-top: 4px; }
+.mc-wave { width: 26px; height: 26px; opacity: .8; }
+.mc-pack { margin: 22px 0 14px; font-size: 13px; letter-spacing: .26em; }
+.mc-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mc-nums strong { display: block; font-family: var(--serif); font-weight: 400; font-size: 36px; line-height: 1; }
+.mc-nums span { display: block; font-size: 9px; opacity: .7; margin-top: 6px; }
+.mc-bar { height: 4px; border-radius: 99px; background: rgba(243, 235, 226, .18); margin: 18px 0 14px; overflow: hidden; }
+.mc-bar span { display: block; height: 100%; background: #f3ebe2; border-radius: 99px; transition: width .6s ease; }
+.mc-nopack { margin: 0 0 14px; font-size: 14px; opacity: .9; }
+.mc-nopack a { color: #f3ebe2; }
+.mc-since { margin: 0; font-size: 10px; opacity: .7; }
+[dir="rtl"] .mc-brand, [dir="rtl"] .mc-pack, [dir="rtl"] .mc-club, [dir="rtl"] .mc-nums span, [dir="rtl"] .mc-since, [dir="rtl"] .acc-banner-sub, [dir="rtl"] .journey-stat span { letter-spacing: 0; text-transform: none; }
+[dir="rtl"] .mc-club, [dir="rtl"] .mc-nums span, [dir="rtl"] .mc-since { font-size: 12px; }
+.journey-grid.two { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.journey-grid.two .journey-stat { text-align: start; padding: 16px 18px; }
+.journey-grid.two .journey-stat span { font-size: 10px; }
+.journey-grid.two .journey-stat strong { font-size: 34px; margin-bottom: 8px; }
+.acc-sub.caps { font-family: var(--caps); font-size: 11px; color: var(--muted); margin: 22px 4px 10px; }
+[dir="rtl"] .acc-sub.caps { font-size: 13px; }
+.next-card { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+.next-card img { width: 96px; height: 70px; object-fit: cover; border-radius: 10px; }
+.next-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.next-main strong { font-family: var(--serif); font-weight: 400; font-size: 20px; }
+.next-main span { font-size: 14px; }
+.next-main small { font-size: 12px; }
+@media (max-width: 420px) { .next-card { grid-template-columns: 76px 1fr; } .next-card .badge { grid-column: 2; justify-self: start; } }

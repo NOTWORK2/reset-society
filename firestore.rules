@@ -51,8 +51,10 @@ service cloud.firestore {
         && str(request.resource.data.name, 100)
         && request.resource.data.phoneDigits is string && request.resource.data.phoneDigits.matches('^[0-9]{8,15}$')
         && getAfter(/databases/$(database)/documents/phones/$(request.resource.data.phoneDigits)).data.uid == uid;
-      allow update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'hasEmail']);
+      allow update: if (signedIn() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'hasEmail']))
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['packName', 'packTotal', 'balance', 'packAssignedAt', 'balanceUpdatedAt', 'note']));
       allow delete: if isAdmin();
     }
     match /phones/{digits} {

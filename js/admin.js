@@ -100,7 +100,7 @@
       knownRefs = new Set(rows.map((b) => b.ref));
       firstSnapshot = false;
       upcoming = rows;
-      renderStats(); renderList();
+      renderStats(); renderList(); renderCustomers();
     }, onWatchError);
     unsubSettings = DB.watchSettings((s) => { settings = s; renderSchedule(); });
     unsubSite = DB.watchSite((site) => {
@@ -110,9 +110,12 @@
     });
     watchScheduleDay();
     watchPlans();
+    watchCustomersList();
   }
   function stopWatching() {
     if (unsubPlans) { unsubPlans(); unsubPlans = null; }
+    if (unsubCustomers) { unsubCustomers(); unsubCustomers = null; }
+    customers = [];
     planRequests = []; prFirst = true;
     [unsubUpcoming, unsubPast, unsubDay, unsubSettings, unsubSite].forEach((u) => u && u());
     unsubUpcoming = unsubPast = unsubDay = unsubSettings = unsubSite = null;
@@ -122,7 +125,7 @@
 
   function watchPast() {
     if (unsubPast) return;
-    unsubPast = DB.watchBookings({ to: addDays(today(), -1), max: 200 }, (rows) => { past = rows; renderList(); }, onWatchError);
+    unsubPast = DB.watchBookings({ to: addDays(today(), -1), max: 200 }, (rows) => { past = rows; renderList(); renderCustomers(); }, onWatchError);
   }
 
   /* ---------- bookings tab ---------- */
@@ -188,7 +191,11 @@
     const act = btn.dataset.act;
     if (act === "cancelled" && !confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
     btn.disabled = true;
-    try { await DB.setStatus(b, act); toast(tr(act === "cancelled" ? "admin.cancelled" : "admin.updated")); }
+    try {
+      const cust = customerFor(b);
+      await DB.setStatus(b, act, cust ? cust.uid : null);
+      toast(act === "cancelled" ? tr("admin.cancelled") : (act === "completed" && cust && cust.packTotal) ? tr("cust.deducted", { name: cust.name, n: Math.max(0, (cust.balance ?? 0) - 1) }) : tr("admin.updated"));
+    }
     catch (err) { console.error(err); toast(tr("admin.updateFailed")); btn.disabled = false; }
   });
 
@@ -203,7 +210,8 @@
   /* ---------- tabs ---------- */
   document.querySelectorAll("[data-tab]").forEach((t) => t.addEventListener("click", () => {
     document.querySelectorAll("[data-tab]").forEach((x) => { x.classList.toggle("active", x === t); x.setAttribute("aria-selected", x === t); });
-    ["bookings", "plans", "schedule", "settings"].forEach((n) => { $("tab-" + n).hidden = t.dataset.tab !== n; });
+    ["bookings", "plans", "customers", "schedule", "settings"].forEach((n) => { $("tab-" + n).hidden = t.dataset.tab !== n; });
+    if (t.dataset.tab === "customers") { watchPast(); renderCustomers(); }
   }));
 
   /* ---------- schedule tab ---------- */
@@ -701,6 +709,91 @@
       console.error(err);
       $("muError").textContent = tr("set.saveFailed");
     } finally { btn.disabled = false; }
+  });
+
+
+  /* ---------- customers (registered accounts) ---------- */
+  let customers = [], unsubCustomers = null, custSearch = "";
+  const digitsOf = (p) => DB.phoneDigits(p);
+  function customerFor(b) {
+    const d = digitsOf(b.phone);
+    return customers.find((c) => c.uid === b.uid) || customers.find((c) => c.phoneDigits && c.phoneDigits === d) || null;
+  }
+  function watchCustomersList() {
+    unsubCustomers = DB.watchCustomers((rows) => { customers = rows; renderCustomers(); }, onWatchError);
+  }
+  function custStats(c) {
+    const all = upcoming.concat(past);
+    const mine = all.filter((b) => b.uid === c.uid || (c.phoneDigits && digitsOf(b.phone) === c.phoneDigits));
+    const t = today();
+    const visits = mine.filter((b) => b.status === "completed" || (b.status === "confirmed" && b.date < t)).length;
+    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).length;
+    return { visits, up };
+  }
+  function renderCustomers() {
+    const box = $("customerList"); if (!box) return;
+    const q = custSearch.trim().toLowerCase();
+    const rows = customers.filter((c) => !q || [c.name, c.phone, c.email].some((v) => String(v || "").toLowerCase().includes(q)));
+    if (!rows.length) { box.innerHTML = `<p class="empty">${tr(customers.length ? "admin.emptySearch" : "cust.empty")}</p>`; return; }
+    box.innerHTML = rows.map((c) => {
+      const st = custStats(c);
+      const digits = String(c.phoneDigits || "");
+      const when = c.createdAt && c.createdAt.toDate ? new Intl.DateTimeFormat(L.locale, { dateStyle: "medium", timeZone: C.timeZone }).format(c.createdAt.toDate()) : "";
+      const pack = c.packTotal
+        ? `<span class="badge ${c.balance > 0 ? "st-confirmed" : "st-noshow"}">${esc(c.packName || "")} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}</span>`
+        : `<span class="badge st-done">${tr("cust.noPack")}</span>`;
+      return `
+        <article class="bk">
+          <div class="bk-time">${st.visits}<small class="muted" style="display:block;font-size:11px">${tr("acc.visits")}</small></div>
+          <div class="bk-main">
+            <div class="bk-top"><strong>${esc(c.name || "")}</strong>${pack}</div>
+            <div class="bk-meta"><a class="ltr" href="tel:+${esc(digits)}">${esc(c.phone || "")}</a>${c.hasEmail && c.email ? ` · <a class="ltr" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ""}</div>
+            <div class="bk-meta">${tr("cust.upcoming", { n: st.up })}${when ? ` · ${tr("cust.registered", { date: when })}` : ""}</div>
+          </div>
+          <div class="bk-actions">
+            ${digits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}">${tr("act.whatsapp")}</a>` : ""}
+            <button class="btn btn-primary btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
+          </div>
+        </article>`;
+    }).join("");
+  }
+  $("custSearch").addEventListener("input", (e) => { custSearch = e.target.value; renderCustomers(); });
+
+  /* assign / edit a pack */
+  let packUid = null;
+  function planOptions() {
+    const ms = ((C.plans && C.plans.memberships) || []).filter((p) => p.active !== false && p.sessions > 0);
+    return [`<option value="">${tr("cust.custom")}</option>`]
+      .concat(ms.map((p) => `<option value="${p.sessions}" data-name="${esc(L.field(C.services.find((s) => s.id === (C.plans.serviceId || "full-recovery")) || {}, "name") || "")} – ${esc(L.sessions(p.sessions))} ${esc(L.period(p.days))}">${esc(L.sessions(p.sessions))} ${esc(L.period(p.days))} · ${L.money(p.price)}</option>`))
+      .join("");
+  }
+  $("customerList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pack]"); if (!b) return;
+    const c = customers.find((x) => x.uid === b.dataset.pack); if (!c) return;
+    packUid = c.uid;
+    $("packWho").textContent = `${c.name || ""} · ${c.phone || ""}`;
+    $("pkPlan").innerHTML = planOptions();
+    $("pkTotal").value = c.packTotal || "";
+    $("pkBalance").value = c.packTotal ? (c.balance ?? 0) : "";
+    $("pkName").value = c.packName || "";
+    $("packError").textContent = "";
+    $("packDialog").showModal();
+  });
+  $("pkPlan").addEventListener("change", (e) => {
+    const opt = e.target.selectedOptions[0];
+    if (!opt || !opt.value) return;
+    $("pkTotal").value = opt.value; $("pkBalance").value = opt.value; $("pkName").value = opt.dataset.name || "";
+  });
+  $("packCancel").addEventListener("click", () => $("packDialog").close());
+  $("packForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const total = Math.round(Number($("pkTotal").value)), balance = Math.round(Number($("pkBalance").value));
+    const name = $("pkName").value.trim();
+    if (!(total >= 1) || !(balance >= 0) || balance > total || !name) { $("packError").textContent = tr("cust.errPack"); return; }
+    $("packSave").disabled = true;
+    try { await DB.setCustomerPack(packUid, { packName: name, packTotal: total, balance }); $("packDialog").close(); toast(tr("admin.updated")); }
+    catch (err) { console.error(err); $("packError").textContent = tr("admin.updateFailed"); }
+    finally { $("packSave").disabled = false; }
   });
 
   /* ---------- plan requests (memberships & session packs) ---------- */

@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611081900" />
-  <link rel="stylesheet" href="css/admin.css?v=202611081900" />
-  <script src="js/i18n.js?v=202611081900"></script>
-  <script src="js/theme.js?v=202611081900"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611081933" />
+  <link rel="stylesheet" href="css/admin.css?v=202611081933" />
+  <script src="js/i18n.js?v=202611081933"></script>
+  <script src="js/theme.js?v=202611081933"></script>
 </head>
 <body class="admin-page">
   <span hidden data-i18n-title="admin.pageTitle"></span>
@@ -74,6 +74,7 @@
         <div class="tabs" role="tablist">
           <button class="tab active" role="tab" aria-selected="true" data-tab="bookings" data-i18n="admin.tabBookings">Bookings</button>
           <button class="tab" role="tab" aria-selected="false" data-tab="plans"><span data-i18n="admin.tabPlans">Plan requests</span> <span class="tab-count" id="prCount" hidden></span></button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="customers" data-i18n="admin.tabCustomers">Customers</button>
           <button class="tab" role="tab" aria-selected="false" data-tab="schedule" data-i18n="admin.tabSchedule">Schedule</button>
           <button class="tab" role="tab" aria-selected="false" data-tab="settings" data-i18n="admin.tabSettings">Settings</button>
         </div>
@@ -89,6 +90,15 @@
             <input class="input search" id="search" type="search" data-i18n-placeholder="admin.search" data-i18n-aria="admin.searchAria" />
           </div>
           <div id="bookingList" aria-live="polite"></div>
+        </div>
+
+        <!-- Customers tab -->
+        <div class="tab-panel" id="tab-customers" hidden>
+          <div class="toolbar">
+            <p class="muted small" style="margin:0" data-i18n="cust.help">Everyone who created an account on the website. Assign a pack or membership and the system takes one session each time you mark a booking Done.</p>
+            <input class="input search" id="custSearch" type="search" data-i18n-placeholder="admin.search" data-i18n-aria="admin.searchAria" />
+          </div>
+          <div id="customerList" aria-live="polite"></div>
         </div>
 
         <!-- Plan requests tab -->
@@ -257,6 +267,37 @@
     </section>
   </main>
 
+  <!-- Assign a pack / membership to a customer -->
+  <dialog class="policy" id="packDialog" aria-labelledby="packTitle">
+    <form class="policy-inner" id="packForm" novalidate>
+      <h2 id="packTitle" data-i18n="cust.assignTitle">Assign pack</h2>
+      <p class="muted" id="packWho"></p>
+      <div class="field">
+        <label for="pkPlan" data-i18n="cust.plan">Plan</label>
+        <select class="input" id="pkPlan" style="appearance:auto"></select>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="pkTotal" data-i18n="cust.total">Total sessions</label>
+          <input class="input" id="pkTotal" type="number" min="1" max="500" />
+        </div>
+        <div class="field">
+          <label for="pkBalance" data-i18n="cust.remaining">Remaining sessions</label>
+          <input class="input" id="pkBalance" type="number" min="0" max="500" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="pkName" data-i18n="cust.packName">Name shown to the customer</label>
+        <input class="input" id="pkName" maxlength="60" />
+      </div>
+      <p class="form-error" id="packError" role="alert"></p>
+      <div class="grid-2">
+        <button class="btn btn-outline" type="button" id="packCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="packSave" data-i18n="set.save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Add / edit a service -->
   <dialog class="policy svc-dialog" id="svcDialog" aria-labelledby="svcTitle">
     <form class="policy-inner" id="svcForm" novalidate>
@@ -334,9 +375,9 @@
     </form>
   </dialog>
 
-  <script src="js/config.js?v=202611081900"></script>
-  <script src="js/firebase-config.js?v=202611081900"></script>
-  <script src="js/common.js?v=202611081900"></script>
-  <script src="js/admin.js?v=202611081900"></script>
+  <script src="js/config.js?v=202611081933"></script>
+  <script src="js/firebase-config.js?v=202611081933"></script>
+  <script src="js/common.js?v=202611081933"></script>
+  <script src="js/admin.js?v=202611081933"></script>
 </body>
 </html>
