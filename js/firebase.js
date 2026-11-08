@@ -146,6 +146,18 @@ async function setStatus(booking, status, customerUid) {
   await batch.commit();
 }
 
+/* Owner moves a booking to another date/time: the old place is freed and a new one taken. */
+async function rescheduleBooking(booking, date, time) {
+  const n = await freePlace(date, time, booking.service);
+  if (!n) throw err("slot-full", "That time is full for this service.");
+  const lid = lockId(date, time, booking.service, n);
+  const batch = writeBatch(db);
+  if (booking.lockId) batch.delete(doc(db, "slotLocks", booking.lockId));
+  batch.set(doc(db, "slotLocks", lid), { date, time, service: booking.service, n, bookingId: booking.ref });
+  batch.update(doc(db, "bookings", booking.ref), { date, time, lockId: lid, updatedAt: serverTimestamp(), rescheduledFrom: `${booking.date} ${booking.time}` });
+  await batch.commit();
+}
+
 function watchCustomers(cb, onError) {
   return onSnapshot(query(collection(db, "customers"), orderBy("createdAt", "desc"), limit(500)),
     (snap) => cb(snap.docs.map((d) => ({ uid: d.id, ...d.data() }))), onError);
@@ -397,6 +409,7 @@ window.__rsDbResolve({
   setPlanRequestStatus,
   watchCustomers,
   setCustomerPack,
+  rescheduleBooking,
   uploadAudio,
   deleteAudio
 });

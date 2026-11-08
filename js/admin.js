@@ -175,6 +175,7 @@
           <div class="bk-actions">
             ${phoneDigits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${phoneDigits}?text=${encodeURIComponent(msg)}">${tr("act.whatsapp")}</a>` : ""}
             ${b.status === "confirmed" ? `
+              <button class="btn btn-outline btn-sm" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button>
               <button class="btn btn-outline btn-sm" data-act="completed" data-ref="${esc(b.ref)}">${tr("act.done")}</button>
               <button class="btn btn-outline btn-sm" data-act="no-show" data-ref="${esc(b.ref)}">${tr("act.noshow")}</button>
               <button class="btn btn-danger btn-sm" data-act="cancelled" data-ref="${esc(b.ref)}">${tr("act.cancel")}</button>`
@@ -730,6 +731,9 @@
     const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).length;
     return { visits, up };
   }
+  function custBookings(c) {
+    return upcoming.concat(past).filter((b) => b.uid === c.uid || (c.phoneDigits && digitsOf(b.phone) === c.phoneDigits));
+  }
   function renderCustomers() {
     const box = $("customerList"); if (!box) return;
     const q = custSearch.trim().toLowerCase();
@@ -753,11 +757,44 @@
           <div class="bk-actions">
             ${digits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}">${tr("act.whatsapp")}</a>` : ""}
             <button class="btn btn-primary btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
+            <button class="btn btn-outline btn-sm" type="button" data-cust-toggle="${esc(c.uid)}" aria-expanded="false">${tr("cust.details")}</button>
           </div>
+          <div class="cust-details" id="cust-${esc(c.uid)}" hidden>${custDetailsHTML(c)}</div>
         </article>`;
     }).join("");
+    openCust.forEach((id) => { const b = $("cust-" + id); const t = box.querySelector(`[data-cust-toggle="${id}"]`); if (b) { b.hidden = false; if (t) t.setAttribute("aria-expanded", "true"); } });
   }
   $("custSearch").addEventListener("input", (e) => { custSearch = e.target.value; renderCustomers(); });
+  const openCust = new Set();
+  function custDetailsHTML(c) {
+    const t = today();
+    const mine = custBookings(c);
+    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const hist = mine.filter((b) => b.status === "completed" || (b.status === "confirmed" && b.date < t)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 5);
+    const row = (b, actions) => `<li><span class="cd-when">${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}</span><span class="cd-svc">${esc(svcName(b.service, b.serviceName))}</span><span class="ref">${esc(b.ref)}</span>${actions}</li>`;
+    return `
+      <h4>${tr("cust.upcomingList")}</h4>
+      <ul class="cd-list">${up.length ? up.map((b) => row(b, `<span class="cd-actions"><button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button><button class="btn btn-danger btn-sm" type="button" data-act="cancelled" data-ref="${esc(b.ref)}">${tr("act.cancel")}</button></span>`)).join("") : `<li class="muted">${tr("acc.noUpcoming")}</li>`}</ul>
+      <h4>${tr("cust.history")}</h4>
+      <ul class="cd-list">${hist.length ? hist.map((b) => row(b, `<span class="badge ${(STATUS[b.status] || STATUS.confirmed).cls}">${(STATUS[b.status] || STATUS.confirmed).label}</span>`)).join("") : `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
+  }
+  $("customerList").addEventListener("click", async (e) => {
+    const tg = e.target.closest("[data-cust-toggle]");
+    if (tg) {
+      const id = tg.dataset.custToggle, box = $("cust-" + id);
+      const open = box.hidden; box.hidden = !open; tg.setAttribute("aria-expanded", String(open));
+      if (open) openCust.add(id); else openCust.delete(id);
+      return;
+    }
+    const act = e.target.closest("[data-act]");
+    if (act) {
+      const b = upcoming.concat(past).find((x) => x.ref === act.dataset.ref); if (!b) return;
+      if (!confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
+      act.disabled = true;
+      try { await DB.setStatus(b, "cancelled", null); toast(tr("admin.cancelled")); }
+      catch (err) { console.error(err); toast(tr("admin.updateFailed")); act.disabled = false; }
+    }
+  });
 
   /* assign / edit a pack */
   let packUid = null;
@@ -794,6 +831,39 @@
     try { await DB.setCustomerPack(packUid, { packName: name, packTotal: total, balance }); $("packDialog").close(); toast(tr("admin.updated")); }
     catch (err) { console.error(err); $("packError").textContent = tr("admin.updateFailed"); }
     finally { $("packSave").disabled = false; }
+  });
+
+
+  /* ---------- reschedule a booking ---------- */
+  let rsBooking = null;
+  function openReschedule(b) {
+    rsBooking = b;
+    $("rsWho").textContent = `${b.name} · ${svcName(b.service, b.serviceName)} · ${fmtDate(b.date)} ${fmtTime(b.time)}`;
+    $("rsDate").value = b.date; $("rsDate").min = today();
+    $("rsTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}" ${t === b.time ? "selected" : ""}>${fmtTime(t)}</option>`).join("");
+    $("rsError").textContent = "";
+    $("rsDialog").showModal();
+  }
+  $("rsCancel").addEventListener("click", () => $("rsDialog").close());
+  $("rsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const date = $("rsDate").value, time = $("rsTime").value;
+    if (!date || !time) { $("rsError").textContent = tr("nb.errFill"); return; }
+    if (date === rsBooking.date && time === rsBooking.time) { $("rsDialog").close(); return; }
+    $("rsSave").disabled = true;
+    try {
+      await DB.rescheduleBooking(rsBooking, date, time);
+      $("rsDialog").close();
+      toast(tr("rs.saved", { date: fmtDate(date), time: fmtTime(time) }));
+    } catch (err) {
+      console.error(err);
+      $("rsError").textContent = tr(err.code === "slot-full" ? "rs.errFull" : "admin.updateFailed");
+    } finally { $("rsSave").disabled = false; }
+  });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-reschedule]"); if (!b) return;
+    const bk = upcoming.concat(past).find((x) => x.ref === b.dataset.reschedule);
+    if (bk) openReschedule(bk);
   });
 
   /* ---------- plan requests (memberships & session packs) ---------- */
@@ -853,7 +923,19 @@
   $("planRequestList").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-pr]"); if (!b) return;
     b.disabled = true;
-    try { await DB.setPlanRequestStatus(b.dataset.pr, b.dataset.prStatus); toast(tr("admin.updated")); }
+    try {
+      await DB.setPlanRequestStatus(b.dataset.pr, b.dataset.prStatus);
+      const r = planRequests.find((x) => x.id === b.dataset.pr);
+      if (b.dataset.prStatus === "active" && r) {
+        const cust = customers.find((c) => c.uid === r.uid) || customers.find((c) => c.phoneDigits && c.phoneDigits === DB.phoneDigits(r.phone));
+        if (cust) {
+          await DB.setCustomerPack(cust.uid, { packName: planName(r), packTotal: r.sessions, balance: r.sessions });
+          toast(tr("pr.activatedPack", { n: r.sessions, name: cust.name }));
+        } else {
+          toast(tr("pr.noAccount"));
+        }
+      } else toast(tr("admin.updated"));
+    }
     catch (err) { console.error(err); toast(tr("admin.updateFailed")); b.disabled = false; }
   });
   document.querySelectorAll("[data-pr-filter]").forEach((c) => c.addEventListener("click", () => {
