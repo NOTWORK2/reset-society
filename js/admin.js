@@ -159,14 +159,16 @@
     rows.forEach((b) => {
       if (b.date !== lastDate) { html += `<h2 class="day-title">${fmtLong(b.date)}</h2>`; lastDate = b.date; }
       const st = STATUS[b.status] || STATUS.confirmed;
+      const cust = customerFor(b);
+      const member = cust && cust.packTotal ? `<span class="badge member-badge" title="${esc(cust.packName || "")}">${tr("cust.member")} · ${tr("cust.left", { n: cust.balance ?? 0, total: cust.packTotal })}</span>` : "";
       const phoneDigits = String(b.phone || "").replace(/\D/g, "");
       const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: svcName(b.service, b.serviceName), date: fmtDate(b.date), time: fmtTime(b.time) });
       html += `
-        <article class="bk ${b.status === "cancelled" ? "is-cancelled" : ""}">
+        <article class="bk ${b.status === "cancelled" ? "is-cancelled" : ""} ${member ? "is-member" : ""}">
           <div class="bk-time">${fmtTime(b.time)}</div>
           <div class="bk-main">
-            <div class="bk-top"><strong>${esc(b.name)}</strong><span class="badge ${st.cls}">${st.label}</span></div>
-            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
+            <div class="bk-top"><strong>${esc(b.name)}</strong>${member}<span class="badge ${st.cls}">${st.label}</span></div>
+            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${b.pay === "pack" ? tr("pay.pack") : `${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
             <div class="bk-meta">
               <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
               ${b.email ? ` · <a class="ltr" href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>
@@ -268,7 +270,12 @@
 
   /* ---------- new booking (phone / walk-in) ---------- */
   const dlg = $("newDialog");
+  let nbCust = null;
+  // A session of the pack's service for a member with sessions left is paid from the pack.
+  const packService = () => (C.plans && C.plans.serviceId) || "full-recovery";
+  const fromPack = (cust, serviceId) => !!(cust && cust.packTotal && (cust.balance ?? 0) > 0 && serviceId === packService());
   function openNewBooking(cust) {
+    nbCust = cust || null;
     $("nbDate").value = today(); $("nbDate").min = today();
     $("newError").textContent = "";
     $("newForm").reset(); $("nbDate").value = today();
@@ -276,7 +283,7 @@
       $("nbName").value = cust.name || "";
       $("nbPhone").value = cust.phone || (cust.phoneDigits ? "+" + cust.phoneDigits : "");
       // Default to the service their pack is for.
-      const svcId = cust.packTotal ? ((C.plans && C.plans.serviceId) || "full-recovery") : null;
+      const svcId = cust.packTotal ? packService() : null;
       if (svcId && [...$("nbService").options].some((o) => o.value === svcId)) $("nbService").value = svcId;
     }
     dlg.showModal();
@@ -287,10 +294,11 @@
   $("newForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const s = svc($("nbService").value);
+    const pack = fromPack(nbCust, s.id);
     const b = {
-      service: s.id, serviceName: s.name, price: s.price, currency: C.currency,
+      service: s.id, serviceName: s.name, price: pack ? 0 : s.price, currency: C.currency,
       date: $("nbDate").value, time: $("nbTime").value,
-      name: $("nbName").value.trim(), phone: $("nbPhone").value.trim(), email: "", pay: "location", source: "admin"
+      name: $("nbName").value.trim(), phone: $("nbPhone").value.trim(), email: "", pay: pack ? "pack" : "location", source: "admin"
     };
     if (!b.date || !b.name || b.phone.replace(/\D/g, "").length < 7) { $("newError").textContent = tr("nb.errFill"); return; }
     $("newSave").disabled = true;
@@ -731,7 +739,7 @@
     return customers.find((c) => c.uid === b.uid) || customers.find((c) => c.phoneDigits && c.phoneDigits === d) || null;
   }
   function watchCustomersList() {
-    unsubCustomers = DB.watchCustomers((rows) => { customers = rows; renderCustomers(); }, onWatchError);
+    unsubCustomers = DB.watchCustomers((rows) => { customers = rows; renderCustomers(); renderList(); }, onWatchError);
   }
   function custStats(c) {
     const all = upcoming.concat(past);
@@ -747,17 +755,18 @@
   function renderCustomers() {
     const box = $("customerList"); if (!box) return;
     const q = custSearch.trim().toLowerCase();
-    const rows = customers.filter((c) => !q || [c.name, c.phone, c.email].some((v) => String(v || "").toLowerCase().includes(q)));
+    const rows = customers.filter((c) => !q || [c.name, c.phone, c.email].some((v) => String(v || "").toLowerCase().includes(q)))
+      .sort((a, b) => (b.packTotal ? 1 : 0) - (a.packTotal ? 1 : 0));
     if (!rows.length) { box.innerHTML = `<p class="empty">${tr(customers.length ? "admin.emptySearch" : "cust.empty")}</p>`; return; }
     box.innerHTML = rows.map((c) => {
       const st = custStats(c);
       const digits = String(c.phoneDigits || "");
       const when = c.createdAt && c.createdAt.toDate ? new Intl.DateTimeFormat(L.locale, { dateStyle: "medium", timeZone: C.timeZone }).format(c.createdAt.toDate()) : "";
       const pack = c.packTotal
-        ? `<span class="badge ${c.balance > 0 ? "st-confirmed" : "st-noshow"}">${esc(c.packName || "")} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}</span>`
+        ? `<span class="badge member-badge">${tr("cust.member")}</span><span class="badge ${c.balance > 0 ? "st-confirmed" : "st-noshow"}">${esc(c.packName || "")} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}</span>`
         : `<span class="badge st-done">${tr("cust.noPack")}</span>`;
       return `
-        <article class="bk">
+        <article class="bk ${c.packTotal ? "is-member" : ""}">
           <div class="bk-time">${st.visits}<small class="muted" style="display:block;font-size:11px">${tr("acc.visits")}</small></div>
           <div class="bk-main">
             <div class="bk-top"><strong>${esc(c.name || "")}</strong>${pack}</div>
@@ -768,6 +777,7 @@
           <div class="bk-actions">
             ${digits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}">${tr("act.whatsapp")}</a>` : ""}
             <button class="btn btn-primary btn-sm" type="button" data-book-for="${esc(c.uid)}">${tr("cust.bookNext")}</button>
+            ${c.packTotal && (c.balance ?? 0) > 0 ? `<button class="btn btn-outline btn-sm" type="button" data-sched-for="${esc(c.uid)}">${tr("cust.schedule")}</button>` : ""}
             <button class="btn btn-outline btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
             <button class="btn btn-outline btn-sm" type="button" data-cust-toggle="${esc(c.uid)}" aria-expanded="false">${tr("cust.details")}</button>
           </div>
@@ -793,6 +803,8 @@
   $("customerList").addEventListener("click", async (e) => {
     const bf = e.target.closest("[data-book-for]");
     if (bf) { const c = customers.find((x) => x.uid === bf.dataset.bookFor); if (c) openNewBooking(c); return; }
+    const sf = e.target.closest("[data-sched-for]");
+    if (sf) { const c = customers.find((x) => x.uid === sf.dataset.schedFor); if (c) openSchedule(c); return; }
     const tg = e.target.closest("[data-cust-toggle]");
     if (tg) {
       const id = tg.dataset.custToggle, box = $("cust-" + id);
@@ -847,6 +859,104 @@
     finally { $("packSave").disabled = false; }
   });
 
+
+  /* ---------- schedule all the sessions of a pack ---------- */
+  let schedCust = null, schedAvail = { counts: {}, closed: new Set() };
+  const dayClosed = (d) => C.booking.closedWeekdays.includes(toUTC(d).getUTCDay()) || (settings.closedDates || []).includes(d) || schedAvail.closed.has(d);
+  const slotFree = (d, t, s) => ((schedAvail.counts[`${d}_${t}_${s}`] || 0) < (svc(s).capacity || 1));
+  function openSchedule(c) {
+    schedCust = c;
+    const st = custStats(c);
+    const left = Math.max(1, (c.balance ?? 0) - st.up);
+    $("schedWho").textContent = `${c.name || ""} · ${c.packName || ""} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}${st.up ? ` · ${tr("cust.upcoming", { n: st.up })}` : ""}`;
+    $("scCount").value = left; $("scCount").max = Math.max(1, c.balance ?? 1);
+    $("scStart").value = addDays(today(), 1); $("scStart").min = today();
+    $("scTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}">${fmtTime(t)}</option>`).join("");
+    $("scService").innerHTML = $("nbService").innerHTML;
+    if ([...$("scService").options].some((o) => o.value === packService())) $("scService").value = packService();
+    // Spread the sessions over the plan's validity: 8 sessions in 30 days → every 3 days.
+    const plan = ((C.plans && C.plans.memberships) || []).find((p) => p.sessions === c.packTotal);
+    const gap = Math.max(1, Math.floor(((plan && plan.days) || 30) / left));
+    const opts = [...$("scEvery").options].map((o) => Number(o.value));
+    $("scEvery").value = String(opts.reduce((best, v) => (Math.abs(v - gap) < Math.abs(best - gap) ? v : best), opts[0]));
+    $("schedRows").innerHTML = ""; $("schedError").textContent = "";
+    $("schedDialog").showModal();
+  }
+  function schedNote(li) {
+    const d = li.querySelector("[data-sc-date]").value, t = li.querySelector("[data-sc-time]").value, s = $("scService").value;
+    const note = li.querySelector("[data-sc-note]");
+    if (!d || d < today()) { note.textContent = tr("sch.errDate"); note.className = "sched-note is-error"; return false; }
+    if (dayClosed(d)) { note.textContent = tr("sch.closed"); note.className = "sched-note is-error"; return false; }
+    if (!slotFree(d, t, s)) { note.textContent = tr("sch.full"); note.className = "sched-note is-error"; return false; }
+    if (!note.classList.contains("is-moved")) { note.textContent = ""; note.className = "sched-note"; }
+    return true;
+  }
+  async function generateSchedule() {
+    const n = Math.max(1, Math.min(100, Math.round(Number($("scCount").value) || 0)));
+    let d = $("scStart").value || today(); if (d < today()) d = today();
+    const t = $("scTime").value, s = $("scService").value, every = Number($("scEvery").value) || 7;
+    $("scGen").disabled = true; $("schedError").textContent = "";
+    try { schedAvail = await DB.loadAvailability(today(), addDays(d, n * every + 60)); }
+    catch (e) { console.error(e); schedAvail = { counts: {}, closed: new Set() }; }
+    $("scGen").disabled = false;
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      let day = d, moved = false;
+      for (let k = 0; k < 30 && (dayClosed(day) || !slotFree(day, t, s)); k++) { day = addDays(day, 1); moved = true; }
+      rows.push({ date: day, time: t, moved });
+      d = addDays(day, every);
+    }
+    $("schedRows").innerHTML = rows.map((r, i) => `
+      <li class="sched-row">
+        <span class="sched-n">${i + 1}</span>
+        <input class="input" type="date" value="${r.date}" min="${today()}" data-sc-date aria-label="${tr("nb.date")}" />
+        <select class="input" style="appearance:auto" data-sc-time aria-label="${tr("nb.time")}">${C.booking.slots.map((x) => `<option value="${x}" ${x === r.time ? "selected" : ""}>${fmtTime(x)}</option>`).join("")}</select>
+        <span class="sched-note ${r.moved ? "is-moved" : ""}" data-sc-note>${r.moved ? tr("sch.moved") : ""}</span>
+        <button class="btn btn-outline btn-sm sched-del" type="button" data-sc-del aria-label="${tr("sch.remove")}">×</button>
+      </li>`).join("");
+  }
+  $("scGen").addEventListener("click", generateSchedule);
+  $("schedCancel").addEventListener("click", () => $("schedDialog").close());
+  $("schedRows").addEventListener("click", (e) => {
+    const del = e.target.closest("[data-sc-del]"); if (!del) return;
+    del.closest("li").remove();
+    [...$("schedRows").querySelectorAll(".sched-n")].forEach((el, i) => { el.textContent = i + 1; });
+  });
+  $("schedRows").addEventListener("change", (e) => {
+    const li = e.target.closest("li"); if (!li) return;
+    li.querySelector("[data-sc-note]").classList.remove("is-moved");
+    schedNote(li);
+  });
+  $("schedForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const lis = [...$("schedRows").querySelectorAll(".sched-row")];
+    if (!lis.length) { $("schedError").textContent = tr("sch.errNone"); return; }
+    const s = svc($("scService").value), c = schedCust;
+    const pack = fromPack(c, s.id);
+    const phone = c.phone || (c.phoneDigits ? "+" + c.phoneDigits : "");
+    $("schedSave").disabled = true; $("scGen").disabled = true; $("schedError").textContent = "";
+    let ok = 0, failed = 0;
+    for (const li of lis) {
+      const date = li.querySelector("[data-sc-date]").value, time = li.querySelector("[data-sc-time]").value;
+      const note = li.querySelector("[data-sc-note]");
+      if (!date || date < today()) { note.textContent = tr("sch.errDate"); note.className = "sched-note is-error"; failed++; continue; }
+      try {
+        await DB.createBooking({
+          service: s.id, serviceName: s.name, price: pack ? 0 : s.price, currency: C.currency, date, time,
+          name: c.name || "", phone, email: "", pay: pack ? "pack" : "location", source: "admin"
+        }, { asAdmin: true });
+        li.remove(); ok++;
+      } catch (err) {
+        console.error(err); failed++;
+        note.textContent = tr(err.code === "slot-full" ? "sch.full" : "nb.errSave"); note.className = "sched-note is-error";
+      }
+    }
+    [...$("schedRows").querySelectorAll(".sched-n")].forEach((el, i) => { el.textContent = i + 1; });
+    $("schedSave").disabled = false; $("scGen").disabled = false;
+    if (ok) toast(tr("sch.saved", { n: L.sessions(ok) }));
+    if (!failed) $("schedDialog").close();
+    else $("schedError").textContent = tr("sch.errSome", { n: failed });
+  });
 
   /* ---------- reschedule a booking ---------- */
   let rsBooking = null;

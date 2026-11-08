@@ -102,6 +102,7 @@
     // Pack / membership card
     const hasPack = !!(c && c.packTotal > 0);
     $("mcNums").hidden = !hasPack; $("mcBar").hidden = !hasPack; $("mcNoPack").hidden = hasPack;
+    $("mcMember").hidden = !hasPack; $("memberCard").classList.toggle("is-member", hasPack);
     if (hasPack) {
       const total = c.packTotal, left = Math.max(0, Math.min(total, c.balance ?? 0)), used = total - left;
       $("mcPack").textContent = c.packName || L.sessions(total);
@@ -138,6 +139,9 @@
     } else {
       $("accNext").innerHTML = `<p class="empty-note" style="padding:8px 4px">${tr("acc.noNext")}</p>`;
     }
+    // Every scheduled session (the owner can plan a whole pack ahead).
+    $("accUpcomingWrap").hidden = upcoming.length < 2;
+    $("accUpcoming").innerHTML = upcoming.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span></li>`).join("");
     const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 10);
     $("accHistory").innerHTML = recent.length
       ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span></li>`).join("")

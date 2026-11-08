@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611082053" />
-  <script src="js/i18n.js?v=202611082053"></script>
-  <script src="js/theme.js?v=202611082053"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611082105" />
+  <script src="js/i18n.js?v=202611082105"></script>
+  <script src="js/theme.js?v=202611082105"></script>
 </head>
 <body class="booking-page account-page">
   <span hidden data-i18n-title="acc.pageTitle"></span>
@@ -141,7 +141,7 @@
 
           <section class="member-card" id="memberCard">
             <div class="mc-top">
-              <div><span class="mc-brand">Reset Society</span><span class="mc-club caps" data-i18n="acc.club">The Recovery Club</span></div>
+              <div><span class="mc-brand">Reset Society <span class="mc-member" id="mcMember" hidden data-i18n="acc.member">Member</span></span><span class="mc-club caps" data-i18n="acc.club">The Recovery Club</span></div>
               <svg class="mc-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 9c3-3 6-3 9 0s6 3 9 0M3 15c3-3 6-3 9 0s6 3 9 0"/></svg>
             </div>
             <p class="mc-pack caps" id="mcPack"></p>
@@ -164,6 +164,11 @@
           <h3 class="acc-sub caps" data-i18n="acc.next">Your next session</h3>
           <div id="accNext"></div>
 
+          <div id="accUpcomingWrap" hidden>
+            <h3 class="acc-sub caps" data-i18n="acc.upcomingList">Your upcoming sessions</h3>
+            <ul class="acc-list" id="accUpcoming"></ul>
+          </div>
+
           <a class="btn btn-primary btn-block" href="book.html" style="margin-top:18px"><span data-i18n="acc.bookNext">Book next session</span> <span data-icon="arrow" style="display:contents"></span></a>
 
           <h3 class="acc-sub caps" data-i18n="acc.history">Session history</h3>
@@ -174,10 +179,10 @@
     </div>
   </main>
 
-  <script src="js/config.js?v=202611082053"></script>
-  <script src="js/firebase-config.js?v=202611082053"></script>
-  <script src="js/common.js?v=202611082053"></script>
-  <script src="js/music.js?v=202611082053"></script>
-  <script src="js/account.js?v=202611082053"></script>
+  <script src="js/config.js?v=202611082105"></script>
+  <script src="js/firebase-config.js?v=202611082105"></script>
+  <script src="js/common.js?v=202611082105"></script>
+  <script src="js/music.js?v=202611082105"></script>
+  <script src="js/account.js?v=202611082105"></script>
 </body>
 </html>

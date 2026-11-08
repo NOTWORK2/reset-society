@@ -865,3 +865,8 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .pay-terms .link-btn { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
 .join-as { margin: -6px 0 16px; }
 #joinFormView.as-account .field { display: none; }
+
+/* Member marker on the pack card */
+.mc-member { display: inline-block; vertical-align: middle; margin-inline-start: 8px; padding: 3px 9px; border-radius: 99px; background: #c9a961; color: #1d1a16; font-size: 9px; letter-spacing: .2em; font-weight: 600; }
+[dir="rtl"] .mc-member { letter-spacing: 0; font-size: 11px; }
+.member-card.is-member { box-shadow: 0 0 0 1px rgba(201, 169, 97, .55), var(--shadow); }

@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611082053" />
-  <link rel="stylesheet" href="css/admin.css?v=202611082053" />
-  <script src="js/i18n.js?v=202611082053"></script>
-  <script src="js/theme.js?v=202611082053"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611082105" />
+  <link rel="stylesheet" href="css/admin.css?v=202611082105" />
+  <script src="js/i18n.js?v=202611082105"></script>
+  <script src="js/theme.js?v=202611082105"></script>
 </head>
 <body class="admin-page">
   <span hidden data-i18n-title="admin.pageTitle"></span>
@@ -290,6 +290,52 @@
     </form>
   </dialog>
 
+  <!-- Schedule all the sessions of a pack at once -->
+  <dialog class="policy sched-dialog" id="schedDialog" aria-labelledby="schedTitle">
+    <form class="policy-inner" id="schedForm" novalidate>
+      <h2 id="schedTitle" data-i18n="sch.title">Schedule pack sessions</h2>
+      <p class="muted" id="schedWho"></p>
+      <div class="grid-3">
+        <div class="field">
+          <label for="scCount" data-i18n="sch.count">Sessions</label>
+          <input class="input" id="scCount" type="number" min="1" max="100" />
+        </div>
+        <div class="field">
+          <label for="scStart" data-i18n="sch.start">First session</label>
+          <input class="input" id="scStart" type="date" />
+        </div>
+        <div class="field">
+          <label for="scTime" data-i18n="nb.time">Time</label>
+          <select class="input" id="scTime" style="appearance:auto"></select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="scEvery" data-i18n="sch.every">Repeat</label>
+          <select class="input" id="scEvery" style="appearance:auto">
+            <option value="1" data-i18n="sch.daily">Every day</option>
+            <option value="2" data-i18n="sch.every2">Every 2 days</option>
+            <option value="3" data-i18n="sch.every3">Every 3 days</option>
+            <option value="4" data-i18n="sch.every4">Every 4 days</option>
+            <option value="7" data-i18n="sch.weekly">Weekly (same weekday)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scService" data-i18n="nb.service">Service</label>
+          <select class="input" id="scService" style="appearance:auto"></select>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-block" type="button" id="scGen" data-i18n="sch.generate">Generate dates</button>
+      <p class="muted sched-hint" data-i18n="sch.hint">Closed or full days move to the next free day. You can change any date or time before saving.</p>
+      <ol class="sched-rows" id="schedRows"></ol>
+      <p class="form-error" id="schedError" role="alert"></p>
+      <div class="grid-2">
+        <button class="btn btn-outline" type="button" id="schedCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="schedSave" data-i18n="sch.save">Save all sessions</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Assign a pack / membership to a customer -->
   <dialog class="policy" id="packDialog" aria-labelledby="packTitle">
     <form class="policy-inner" id="packForm" novalidate>
@@ -398,9 +444,9 @@
     </form>
   </dialog>
 
-  <script src="js/config.js?v=202611082053"></script>
-  <script src="js/firebase-config.js?v=202611082053"></script>
-  <script src="js/common.js?v=202611082053"></script>
-  <script src="js/admin.js?v=202611082053"></script>
+  <script src="js/config.js?v=202611082105"></script>
+  <script src="js/firebase-config.js?v=202611082105"></script>
+  <script src="js/common.js?v=202611082105"></script>
+  <script src="js/admin.js?v=202611082105"></script>
 </body>
 </html>
