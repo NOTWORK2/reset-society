@@ -870,3 +870,11 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
 .mc-member { display: inline-block; vertical-align: middle; margin-inline-start: 8px; padding: 3px 9px; border-radius: 99px; background: #c9a961; color: #1d1a16; font-size: 9px; letter-spacing: .2em; font-weight: 600; }
 [dir="rtl"] .mc-member { letter-spacing: 0; font-size: 11px; }
 .member-card.is-member { box-shadow: 0 0 0 1px rgba(201, 169, 97, .55), var(--shadow); }
+
+/* Status pills on the member dashboard lists */
+.acc-list .badge { margin-inline-start: auto; }
+.acc-list .acc-num { font-size: 13px; }
+.badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--line); color: var(--ink); white-space: nowrap; }
+.st-confirmed { background: rgba(94, 140, 106, .16); color: #2f6b45; }
+.st-done { background: var(--line); color: var(--ink); }
+:root[data-theme="dark"] .st-confirmed { background: rgba(94, 140, 106, .28); color: #a9d6b6; }

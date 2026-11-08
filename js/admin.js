@@ -779,47 +779,76 @@
             <button class="btn btn-primary btn-sm" type="button" data-book-for="${esc(c.uid)}">${tr("cust.bookNext")}</button>
             ${c.packTotal && (c.balance ?? 0) > 0 ? `<button class="btn btn-outline btn-sm" type="button" data-sched-for="${esc(c.uid)}">${tr("cust.schedule")}</button>` : ""}
             <button class="btn btn-outline btn-sm" type="button" data-pack="${esc(c.uid)}">${tr(c.packTotal ? "cust.editPack" : "cust.assign")}</button>
-            <button class="btn btn-outline btn-sm" type="button" data-cust-toggle="${esc(c.uid)}" aria-expanded="false">${tr("cust.details")}</button>
+            <button class="btn btn-outline btn-sm" type="button" data-sessions="${esc(c.uid)}">${tr("cust.sessions", { n: st.up })}</button>
           </div>
-          <div class="cust-details" id="cust-${esc(c.uid)}" hidden>${custDetailsHTML(c)}</div>
         </article>`;
     }).join("");
-    openCust.forEach((id) => { const b = $("cust-" + id); const t = box.querySelector(`[data-cust-toggle="${id}"]`); if (b) { b.hidden = false; if (t) t.setAttribute("aria-expanded", "true"); } });
+    if ($("sessDialog").open) renderSessions();
   }
   $("custSearch").addEventListener("input", (e) => { custSearch = e.target.value; renderCustomers(); });
-  const openCust = new Set();
-  function custDetailsHTML(c) {
-    const t = today();
-    const mine = custBookings(c);
-    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    const hist = mine.filter((b) => b.status === "completed" || (b.status === "confirmed" && b.date < t)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 5);
-    const row = (b, actions) => `<li><span class="cd-when">${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}</span><span class="cd-svc">${esc(svcName(b.service, b.serviceName))}</span><span class="ref">${esc(b.ref)}</span>${actions}</li>`;
-    return `
-      <h4>${tr("cust.upcomingList")}</h4>
-      <ul class="cd-list">${up.length ? up.map((b) => row(b, `<span class="cd-actions"><button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button><button class="btn btn-danger btn-sm" type="button" data-act="cancelled" data-ref="${esc(b.ref)}">${tr("act.cancel")}</button></span>`)).join("") : `<li class="muted">${tr("acc.noUpcoming")}</li>`}</ul>
-      <h4>${tr("cust.history")}</h4>
-      <ul class="cd-list">${hist.length ? hist.map((b) => row(b, `<span class="badge ${(STATUS[b.status] || STATUS.confirmed).cls}">${(STATUS[b.status] || STATUS.confirmed).label}</span>`)).join("") : `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
-  }
   $("customerList").addEventListener("click", async (e) => {
     const bf = e.target.closest("[data-book-for]");
     if (bf) { const c = customers.find((x) => x.uid === bf.dataset.bookFor); if (c) openNewBooking(c); return; }
     const sf = e.target.closest("[data-sched-for]");
     if (sf) { const c = customers.find((x) => x.uid === sf.dataset.schedFor); if (c) openSchedule(c); return; }
-    const tg = e.target.closest("[data-cust-toggle]");
-    if (tg) {
-      const id = tg.dataset.custToggle, box = $("cust-" + id);
-      const open = box.hidden; box.hidden = !open; tg.setAttribute("aria-expanded", String(open));
-      if (open) openCust.add(id); else openCust.delete(id);
-      return;
-    }
-    const act = e.target.closest("[data-act]");
-    if (act) {
-      const b = upcoming.concat(past).find((x) => x.ref === act.dataset.ref); if (!b) return;
-      if (!confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
-      act.disabled = true;
-      try { await DB.setStatus(b, "cancelled", null); toast(tr("admin.cancelled")); }
-      catch (err) { console.error(err); toast(tr("admin.updateFailed")); act.disabled = false; }
-    }
+    const sb = e.target.closest("[data-sessions]");
+    if (sb) { const c = customers.find((x) => x.uid === sb.dataset.sessions); if (c) openSessions(c); return; }
+  });
+
+  /* ---------- every session of one customer: move, mark done, undo ---------- */
+  let sessUid = null;
+  function openSessions(c) { sessUid = c.uid; renderSessions(); $("sessDialog").showModal(); }
+  function renderSessions() {
+    const c = customers.find((x) => x.uid === sessUid); if (!c) return;
+    const t = today();
+    const mine = custBookings(c).filter((b) => b.status !== "cancelled");
+    const up = mine.filter((b) => b.status === "confirmed" && b.date >= t).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const hist = mine.filter((b) => !(b.status === "confirmed" && b.date >= t)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+    const used = c.packTotal ? Math.max(0, c.packTotal - (c.balance ?? 0)) : 0;
+    $("sessTitle").textContent = tr("sess.title", { name: c.name || "" });
+    $("sessWho").textContent = c.packTotal
+      ? `${c.packName || ""} · ${tr("cust.left", { n: c.balance ?? 0, total: c.packTotal })}`
+      : tr("cust.noPack");
+    const row = (b, label, actions) => {
+      const st = STATUS[b.status] || STATUS.confirmed;
+      return `<li class="sess-row">
+        <div class="sess-main">
+          <span class="cd-when">${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}</span>
+          <span class="cd-svc">${label ? `<span class="sess-n">${label}</span> · ` : ""}${esc(svcName(b.service, b.serviceName))} · <span class="ref">${esc(b.ref)}</span></span>
+        </div>
+        <span class="badge ${st.cls}">${st.label}</span>
+        <span class="cd-actions">${actions}</span>
+      </li>`;
+    };
+    const btn = (act, ref, label, cls = "btn-outline") => `<button class="btn ${cls} btn-sm" type="button" data-sact="${act}" data-ref="${esc(ref)}">${label}</button>`;
+    const upRows = up.map((b, i) => row(b,
+      c.packTotal ? tr("sess.num", { i: used + i + 1, total: c.packTotal }) : String(i + 1),
+      `<button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button>${btn("completed", b.ref, tr("act.done"))}${btn("cancelled", b.ref, tr("act.cancel"), "btn-danger")}`));
+    const histRows = hist.map((b) => row(b, "",
+      b.status === "confirmed"
+        ? `${btn("completed", b.ref, tr("act.done"))}${btn("no-show", b.ref, tr("act.noshow"))}`
+        : btn("confirmed", b.ref, tr("act.undo"))));
+    $("sessBody").innerHTML = `
+      <h4>${tr("cust.upcomingList")} (${up.length})</h4>
+      <ul class="sess-list">${upRows.join("") || `<li class="muted">${tr("acc.noUpcoming")}</li>`}</ul>
+      <h4>${tr("cust.history")} (${hist.length})</h4>
+      <ul class="sess-list">${histRows.join("") || `<li class="muted">${tr("acc.noHistory")}</li>`}</ul>`;
+  }
+  $("sessClose").addEventListener("click", () => $("sessDialog").close());
+  $("sessAdd").addEventListener("click", () => { const c = customers.find((x) => x.uid === sessUid); if (c) openNewBooking(c); });
+  $("sessBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-sact]"); if (!btn) return;
+    const b = upcoming.concat(past).find((x) => x.ref === btn.dataset.ref); if (!b) return;
+    const c = customers.find((x) => x.uid === sessUid);
+    const act = btn.dataset.sact;
+    if (act === "cancelled" && !confirm(tr("admin.confirmCancel", { name: b.name, ref: b.ref }))) return;
+    btn.disabled = true;
+    try {
+      await DB.setStatus(b, act, c ? c.uid : null);
+      toast(act === "cancelled" ? tr("admin.cancelled")
+        : (act === "completed" && c && c.packTotal && !b.deducted) ? tr("cust.deducted", { name: c.name, n: Math.max(0, (c.balance ?? 0) - 1) })
+        : tr("admin.updated"));
+    } catch (err) { console.error(err); toast(tr("admin.updateFailed")); btn.disabled = false; }
   });
 
   /* assign / edit a pack */

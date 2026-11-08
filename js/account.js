@@ -141,10 +141,11 @@
     }
     // Every scheduled session (the owner can plan a whole pack ahead).
     $("accUpcomingWrap").hidden = upcoming.length < 2;
-    $("accUpcoming").innerHTML = upcoming.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span></li>`).join("");
+    const used = hasPack ? Math.max(0, c.packTotal - (c.balance ?? 0)) : 0;
+    $("accUpcoming").innerHTML = upcoming.map((b, i) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>${hasPack ? `<span class="acc-num">${tr("sess.num", { i: used + i + 1, total: c.packTotal })}</span>` : ""}<span class="badge st-confirmed">${tr("acc.booked")}</span></li>`).join("");
     const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 10);
     $("accHistory").innerHTML = recent.length
-      ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span></li>`).join("")
+      ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>${b.status === "completed" ? `<span class="badge st-done">${tr("acc.done")}</span>` : ""}</li>`).join("")
       : `<li class="muted">${tr("acc.noHistory")}</li>`;
     $("accWa").href = waLink(tr("acc.waMsg", { name }));
     view("accJourney");
