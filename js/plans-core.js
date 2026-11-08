@@ -34,10 +34,12 @@
 
   // Short label shown on cards: "8 Sessions / Month" or "10-Session Pack".
   function shortLabel(p, tab, lang) {
+    const days = Number(p.days) || 30;
     if (lang === "en") {
-      return tab === "memberships" ? `${p.sessions} ${p.sessions === 1 ? "Session" : "Sessions"} / Month` : `${p.sessions}-Session Pack`;
+      const per = days === 30 ? "/ Month" : `/ ${days} days`;
+      return tab === "memberships" ? `${p.sessions} ${p.sessions === 1 ? "Session" : "Sessions"} ${per}` : `${p.sessions}-Session Pack`;
     }
-    return tab === "memberships" ? `${L.sessions(p.sessions)} ${tr("plans.perMonth")}` : `باقة ${L.sessions(p.sessions)}`;
+    return tab === "memberships" ? `${L.sessions(p.sessions)} ${L.period(days)}` : `باقة ${L.sessions(p.sessions)}`;
   }
   // Full label for requests and WhatsApp: "Full Recovery – 8 Sessions / Month".
   function fullLabel(p, tab, lang) {
@@ -50,7 +52,7 @@
   function cardsHTML(list, tab, chosenId, group) {
     if (!list.length) return `<p class="empty-note">${tr("plans.empty")}</p>`;
     return list.map((p) => {
-      const sub = tab === "memberships" ? tr("plans.perMonth") : (L.field(p, "validity") || tr("plans.oneTime"));
+      const sub = tab === "memberships" ? L.period(p.days) : (L.field(p, "validity") || tr("plans.oneTime"));
       const id = `${group}-${esc(p.id)}`;
       return `
         <input class="sr-only" type="radio" name="${group}" id="${id}" value="${esc(p.id)}" ${p.id === chosenId ? "checked" : ""} />

@@ -262,6 +262,8 @@
       "plans.membershipsTitle": "Memberships",
       "plans.membershipsSub": "A consistent recovery routine",
       "plans.perMonth": "/ Month",
+      "plans.perDays": "/ {n} days",
+      "set.days": "Validity (days)",
       "plans.perSession": "{price} / Session",
       "plans.benefitsMemberships": "Membership Benefits",
       "plans.benefitsPacks": "Pack Benefits",
@@ -564,6 +566,8 @@
       "plans.membershipsTitle": "العضويات",
       "plans.membershipsSub": "روتين تعافٍ منتظم",
       "plans.perMonth": "/ شهرياً",
+      "plans.perDays": "/ {n}",
+      "set.days": "مدة الصلاحية (بالأيام)",
       "plans.perSession": "{price} / للجلسة",
       "plans.benefitsMemberships": "مزايا العضوية",
       "plans.benefitsPacks": "مزايا الباقات",
@@ -674,6 +678,14 @@
     num: (n) => (typeof n === "number" ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n) : n),
     money: (n) => `${typeof n === "number" ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n) : n} ${t("currency")}`,
     // "4 Sessions" / Arabic plural rules: جلسة واحدة، جلستان، 3–10 جلسات، 11+ جلسة
+    // Validity period of a plan: "/ Month" when 30 days, otherwise "/ 45 days".
+    period(days) {
+      const n = Number(days) || 30;
+      if (n === 30) return t("plans.perMonth");
+      if (!isAr) return t("plans.perDays", { n });
+      const word = n === 1 ? "يوم واحد" : n === 2 ? "يومان" : n >= 3 && n <= 10 ? `${n} أيام` : `${n} يوماً`;
+      return t("plans.perDays", { n: word });
+    },
     sessions(n) {
       if (!isAr) return `${n} ${n === 1 ? "Session" : "Sessions"}`;
       if (n === 1) return "جلسة واحدة";

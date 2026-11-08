@@ -703,6 +703,7 @@
     row.innerHTML = `
       <label><span>${tr("set.sessions")}</span><input class="input" data-k="sessions" type="number" min="1" max="500" value="${esc(p.sessions)}" /></label>
       <label><span>${tr("set.price")}</span><input class="input" data-k="price" type="number" min="0" step="1" value="${esc(p.price)}" /></label>
+      ${kind === "memberships" ? `<label><span>${tr("set.days")}</span><input class="input" data-k="days" type="number" min="1" max="365" value="${esc(p.days || 30)}" /></label>` : ""}
       ${kind === "packs" ? `
       <label><span>${tr("set.validityEn")}</span><input class="input" data-k="validity" dir="ltr" value="${esc(p.validity || "")}" placeholder="Valid for 3 months" /></label>
       <label><span>${tr("set.validityAr")}</span><input class="input" data-k="validity_ar" dir="rtl" value="${esc(p.validity_ar || "")}" placeholder="صالحة لمدة 3 أشهر" /></label>` : ""}
@@ -741,6 +742,7 @@
         featured: v("featured"),
         active: v("active")
       };
+      if (prefix === "m") p.days = Math.min(365, Math.max(1, Math.round(Number(v("days")) || 30)));
       if (prefix === "p") { p.validity = v("validity"); p.validity_ar = v("validity_ar"); }
       return p;
     });

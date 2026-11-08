@@ -160,6 +160,6 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
 .plan-edit-flags .btn { margin-inline-start: auto; }
 .plan-rows + .btn { margin-top: 6px; }
 @media (min-width: 900px) {
-  .plan-edit { grid-template-columns: 110px 130px 1fr; align-items: end; }
+  .plan-edit { grid-template-columns: 110px 120px 130px 1fr; align-items: end; }
   .plan-edit.is-pack { grid-template-columns: 110px 130px 1fr 1fr 1fr; }
 }

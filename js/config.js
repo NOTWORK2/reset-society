@@ -45,9 +45,10 @@ window.RS_CONFIG = {
   plans: {
     serviceId: "full-recovery", // memberships and packs are for this service
     memberships: [
-      { id: "m4", sessions: 4, price: 400, image: "assets/img/sauna.jpg" },
-      { id: "m8", sessions: 8, price: 750, image: "assets/img/cold-plunge.jpg" },
-      { id: "m12", sessions: 12, price: 1100, image: "assets/img/full-recovery.jpg", featured: true }
+      // days = how long the sessions stay valid (30 shows as "/ Month"). Editable in the admin.
+      { id: "m4", sessions: 4, price: 400, days: 30, image: "assets/img/sauna.jpg" },
+      { id: "m8", sessions: 8, price: 750, days: 30, image: "assets/img/cold-plunge.jpg" },
+      { id: "m12", sessions: 12, price: 1100, days: 30, image: "assets/img/full-recovery.jpg", featured: true }
     ],
     packs: [] // "Session Packs" on the booking page are the single sessions above
   },

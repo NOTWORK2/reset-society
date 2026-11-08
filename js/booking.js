@@ -539,9 +539,9 @@
     show(current());
 
     // Prices and services edited in the admin may be newer than the copy shown first.
-    const before = JSON.stringify([C.services, C.booking]);
+    const before = JSON.stringify([C.services, C.booking, C.plans]);
     window.RS_SITE.then((site) => {
-      if (!site || JSON.stringify([C.services, C.booking]) === before) return;
+      if (!site || JSON.stringify([C.services, C.booking, C.plans]) === before) return;
       renderServices();
       renderPolicy();
       if (current() !== "confirmed") show(current()); else renderBindings();
