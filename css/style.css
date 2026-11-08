@@ -231,7 +231,7 @@ body.menu-open { overflow: hidden; }
 }
 .hero h1 span { display: block; }
 .hero-logo { margin: 0; padding: 0; line-height: 0; }
-.hero-logo img { display: block; width: min(74vw, 400px); height: auto; margin: 0 auto; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .35)); }
+.hero-logo img { display: block; width: min(56vw, 300px); height: auto; margin: 0 auto; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .35)); }
 .hero-sub { margin: 30px 0 40px; font-size: clamp(11px, 2.9vw, 13px); letter-spacing: .34em; padding-left: .34em; }
 .hero-actions { display: grid; gap: 14px; width: 100%; max-width: 380px; }
 .hero-foot {
