@@ -13,7 +13,7 @@
  *   phones/{digits}       one doc per registered phone number, so a number can only be claimed once
  *   admins/{uid}          exists = that signed-in user is an admin (create it in the console)
  */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, connectFirestoreEmulator, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
   writeBatch, onSnapshot, serverTimestamp, setDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, updateDoc, runTransaction, increment
@@ -346,6 +346,44 @@ async function customerSignUp({ name, phone, email }) {
   return { user, created: true };
 }
 
+/* The owner adds a customer from the admin (walk-in, phone call). The account is created through a
+   second, throw-away Firebase app so the owner stays signed in; the customer can then log in on the
+   website with that phone number. Throws "phone-taken" when the number already has an account. */
+async function adminCreateCustomer({ name, phone, email }) {
+  const digits = phoneDigits(phone);
+  if (digits.length < 8 || digits.length > 15) throw err("bad-phone", "Phone number not valid");
+  const app2 = initializeApp(cfg, "rs-add-customer-" + Date.now());
+  const auth2 = getAuth(app2), db2 = getFirestore(app2);
+  if (cfg.projectId.startsWith("demo-")) {
+    connectFirestoreEmulator(db2, location.hostname, 8085);
+    connectAuthEmulator(auth2, `http://${location.hostname}:9099`, { disableWarnings: true });
+  }
+  try {
+    let user;
+    try { user = (await createUserWithEmailAndPassword(auth2, `${digits}@${PHONE_DOMAIN}`, phonePass(digits))).user; }
+    catch (e) { if (e.code === "auth/email-already-in-use") throw err("phone-taken", "Phone already registered"); throw e; }
+    try { await updateProfile(user, { displayName: name }); } catch (e) { /* cosmetic */ }
+    try {
+      await runTransaction(db2, async (tx) => {
+        const claim = await tx.get(doc(db2, "phones", digits));
+        if (claim.exists() && claim.data().uid !== user.uid) throw err("phone-taken", "Phone already registered");
+        tx.set(doc(db2, "phones", digits), { uid: user.uid });
+        tx.set(doc(db2, "customers", user.uid), {
+          name, phone: "+" + digits, phoneDigits: digits, email: email ? email.trim().toLowerCase() : "",
+          hasEmail: !!(email && email.trim()), createdAt: serverTimestamp()
+        });
+      });
+    } catch (e) {
+      try { await user.delete(); } catch (e2) { /* leave for the owner to clean up */ }
+      throw e;
+    }
+    return user.uid;
+  } finally {
+    try { await signOut(auth2); } catch (e) { /* ignore */ }
+    try { await deleteApp(app2); } catch (e) { /* ignore */ }
+  }
+}
+
 /* Booking or requesting a plan with a name and phone is enough to have an account:
    called before the booking is saved, so it belongs to that account. Never blocks the booking. */
 async function ensureAccount({ name, phone, email }) {
@@ -437,6 +475,7 @@ window.__rsDbResolve({
   phoneSignIn,
   phoneRegistered,
   ensureAccount,
+  adminCreateCustomer,
   phoneDigits,
   createPlanRequest,
   // admin

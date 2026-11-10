@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611101448" />
-  <link rel="stylesheet" href="css/admin.css?v=202611101448" />
-  <script src="js/i18n.js?v=202611101448"></script>
-  <script src="js/theme.js?v=202611101448"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611101500" />
+  <link rel="stylesheet" href="css/admin.css?v=202611101500" />
+  <script src="js/i18n.js?v=202611101500"></script>
+  <script src="js/theme.js?v=202611101500"></script>
 </head>
 <body class="admin-page">
   <span hidden data-i18n-title="admin.pageTitle"></span>
@@ -97,6 +97,7 @@
           <div class="toolbar">
             <p class="muted small" style="margin:0" data-i18n="cust.help">Everyone who created an account on the website. Assign a pack or membership and the system takes one session each time you mark a booking Done.</p>
             <input class="input search" id="custSearch" type="search" data-i18n-placeholder="admin.search" data-i18n-aria="admin.searchAria" />
+            <button class="btn btn-primary" type="button" id="addCustBtn" data-i18n="cust.add">+ Add customer</button>
           </div>
           <div id="customerList" aria-live="polite"></div>
         </div>
@@ -290,6 +291,31 @@
     </form>
   </dialog>
 
+  <!-- Add a customer by hand -->
+  <dialog class="policy" id="addCustDialog" aria-labelledby="addCustTitle">
+    <form class="policy-inner" id="addCustForm" novalidate>
+      <h2 id="addCustTitle" data-i18n="cust.addTitle">Add customer</h2>
+      <p class="muted" data-i18n="cust.addHelp">The customer can then log in on the website with this phone number.</p>
+      <div class="field">
+        <label for="acName" data-i18n="f.name">Full Name *</label>
+        <input class="input" id="acName" required maxlength="100" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="acPhone" data-i18n="f.phone">Phone Number *</label>
+        <input class="input" id="acPhone" type="tel" dir="ltr" required maxlength="30" placeholder="+971 50 123 4567" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="acEmail" data-i18n="f.email">Email (Optional)</label>
+        <input class="input" id="acEmail" type="email" dir="ltr" maxlength="120" autocomplete="off" />
+      </div>
+      <p class="form-error" id="addCustError" role="alert"></p>
+      <div class="grid-2">
+        <button class="btn btn-outline" type="button" id="addCustCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="addCustSave" data-i18n="cust.addSave">Add customer</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Every session of one customer: move, mark done, undo -->
   <dialog class="policy sess-dialog" id="sessDialog" aria-labelledby="sessTitle">
     <div class="policy-inner">
@@ -457,9 +483,9 @@
     </form>
   </dialog>
 
-  <script src="js/config.js?v=202611101448"></script>
-  <script src="js/firebase-config.js?v=202611101448"></script>
-  <script src="js/common.js?v=202611101448"></script>
-  <script src="js/admin.js?v=202611101448"></script>
+  <script src="js/config.js?v=202611101500"></script>
+  <script src="js/firebase-config.js?v=202611101500"></script>
+  <script src="js/common.js?v=202611101500"></script>
+  <script src="js/admin.js?v=202611101500"></script>
 </body>
 </html>

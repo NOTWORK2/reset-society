@@ -786,6 +786,33 @@
     if ($("sessDialog").open) renderSessions();
   }
   $("custSearch").addEventListener("input", (e) => { custSearch = e.target.value; renderCustomers(); });
+
+  /* add a customer by hand (walk-in / phone): same details as the website asks for */
+  $("addCustBtn").addEventListener("click", () => {
+    $("addCustForm").reset(); $("addCustError").textContent = "";
+    $("addCustDialog").showModal();
+    setTimeout(() => $("acName").focus(), 50);
+  });
+  $("addCustCancel").addEventListener("click", () => $("addCustDialog").close());
+  $("addCustForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("acName").value.trim(), phone = $("acPhone").value.trim(), email = $("acEmail").value.trim();
+    const err = $("addCustError"); err.textContent = "";
+    const digits = DB.phoneDigits(phone);
+    if (name.length < 2) { err.textContent = tr("f.nameErr"); return; }
+    if (digits.length < 8 || digits.length > 15) { err.textContent = tr("acc.errPhone"); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { err.textContent = tr("acc.errEmail"); return; }
+    $("addCustSave").disabled = true;
+    try {
+      await DB.adminCreateCustomer({ name, phone: "+" + digits, email });
+      $("addCustDialog").close();
+      custSearch = ""; $("custSearch").value = "";
+      toast(tr("cust.added", { name }));
+    } catch (ex) {
+      console.error(ex);
+      err.textContent = tr(ex.code === "phone-taken" ? "cust.errExists" : ex.code === "bad-phone" ? "acc.errPhone" : "cust.errAdd");
+    } finally { $("addCustSave").disabled = false; }
+  });
   $("customerList").addEventListener("click", async (e) => {
     const bf = e.target.closest("[data-book-for]");
     if (bf) { const c = customers.find((x) => x.uid === bf.dataset.bookFor); if (c) openNewBooking(c); return; }
