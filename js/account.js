@@ -281,14 +281,9 @@
     setMode(pre === "signup" ? "signup" : "login");
     DB.onAuth(async (user) => {
       if (!user || user.isAnonymous) { view("accAuth"); return; }
-      // The owner's account is not a customer account: explain, and offer the admin or a sign-out.
-      if (await DB.isAdmin(user)) {
-        $("accStatusText").innerHTML = `${tr("acc.ownerNote", { email: esc(user.email || "") })}
-          <span class="owner-actions"><button class="btn btn-primary btn-sm" type="button" id="ownerSignOut">${tr("admin.signOut")}</button></span>`;
-        $("ownerSignOut").addEventListener("click", () => DB.signOut());
-        view("accStatus");
-        return;
-      }
+      // The owner signs in on the admin page only (its session is separate). An owner session found
+      // here is a leftover from before that: close it and show the customer login.
+      if (await DB.isAdmin(user)) { await DB.signOut(); return; }
       lastUser = user;
       renderJourney(user);
     });

@@ -26,7 +26,11 @@ import {
 
 const C = window.RS_CONFIG;
 const cfg = window.RS_FIREBASE;
-const app = initializeApp(cfg);
+/* The owner's sign-in and the customers' sign-in are kept apart: the admin page runs as its own
+   Firebase app ("rs-admin"), so its session is stored separately from the public site's. The owner can
+   stay signed in to the admin and, in the same browser, use the site as a customer. */
+const IS_ADMIN_PAGE = !!window.RS_ADMIN_PAGE;
+const app = IS_ADMIN_PAGE ? initializeApp(cfg, "rs-admin") : initializeApp(cfg);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -456,6 +460,14 @@ async function deleteAudio(id) {
   batch.delete(doc(db, "audio", id));
   await batch.commit();
   if (window.caches) { try { const c = await caches.open("rs-audio"); await c.delete("/rs-audio/" + id); } catch (e) { /* ignore */ } }
+}
+
+if (!IS_ADMIN_PAGE) {
+  // An owner session on the public site is a leftover: the owner signs in on the admin page only.
+  auth.authStateReady().then(async () => {
+    const u = auth.currentUser;
+    try { if (u && !u.isAnonymous && await isAdmin(u)) await signOut(auth); } catch (e) { /* offline: leave it */ }
+  });
 }
 
 window.__rsDbResolve({
