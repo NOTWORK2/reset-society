@@ -52,37 +52,72 @@
     return tr("acc.errGeneric");
   };
 
-  /* ---------- sign up ---------- */
+  /* ---------- sign up: name + phone (+ optional email), no password ---------- */
+  function showPassword(msg) {
+    setMode("login");
+    $("liPwWrap").hidden = false; $("liForgot").hidden = false;
+    $("liError").textContent = msg || "";
+    $("liPassword").focus();
+  }
   $("signupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const name = $("suName").value.trim(), phone = $("suPhone").value.trim(), email = $("suEmail").value.trim(), pw = $("suPassword").value;
+    const name = $("suName").value.trim(), phone = $("suPhone").value.trim(), email = $("suEmail").value.trim();
     const err = $("suError"); err.textContent = "";
     const digits = DB.phoneDigits("+" + $("suCc").value + phone.replace(/^0+/, ""));
     if (name.length < 2) { err.textContent = tr("f.nameErr"); return; }
     if (digits.length < 8 || digits.length > 15) { err.textContent = tr("acc.errPhone"); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { err.textContent = tr("acc.errEmail"); return; }
-    if (pw.length < 6) { err.textContent = tr("acc.errWeak"); return; }
     const btn = $("suSubmit"); btn.disabled = true;
     try {
-      await DB.customerSignUp({ name, phone: "+" + digits, email, password: pw });
-      toast(tr("acc.welcome", { name }));
-    } catch (ex) { console.error(ex); err.textContent = authMessage(ex); }
+      const r = await DB.customerSignUp({ name, phone: "+" + digits, email });
+      toast(tr(r.created ? "acc.welcome" : "acc.welcomeBack", { name }));
+    } catch (ex) {
+      console.error(ex);
+      if (ex.code === "needs-password" || ex.code === "phone-taken") {
+        $("liCc").value = $("suCc").value; $("liId").value = phone;
+        showPassword(tr("acc.needsPassword"));
+      } else err.textContent = authMessage(ex);
+    }
     finally { btn.disabled = false; }
   });
 
-  /* ---------- log in ---------- */
+  /* ---------- log in: the phone number is enough ---------- */
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = $("liId").value.trim(), pw = $("liPassword").value;
     const err = $("liError"); err.textContent = "";
-    if (!id || !pw) { err.textContent = tr("admin.errBoth"); return; }
-    const ident = id.includes("@") ? id : "+" + DB.phoneDigits(id.startsWith("+") || id.startsWith("00") ? id : $("liCc").value + id.replace(/^0+/, ""));
+    if (!id) { err.textContent = tr("acc.errPhone"); return; }
+    const isEmail = id.includes("@");
+    const ident = isEmail ? id : "+" + DB.phoneDigits(id.startsWith("+") || id.startsWith("00") ? id : $("liCc").value + id.replace(/^0+/, ""));
+    if (!isEmail && ident.length < 9) { err.textContent = tr("acc.errPhone"); return; }
     const btn = $("liSubmit"); btn.disabled = true;
-    try { await DB.customerSignIn(ident, pw); $("liPassword").value = ""; }
+    try {
+      if (isEmail || (!$("liPwWrap").hidden && pw)) {
+        // Older account with a password.
+        if (!pw) { showPassword(tr("acc.needsPassword")); return; }
+        await DB.customerSignIn(ident, pw); $("liPassword").value = "";
+        return;
+      }
+      try { await DB.phoneSignIn(ident); return; }
+      catch (ex) {
+        if (ex.code === "auth/too-many-requests") { err.textContent = tr("admin.errMany"); return; }
+        // Not a passwordless account: either an older one with a password, or no account yet.
+        let known = false;
+        try { known = await DB.phoneRegistered(ident); } catch (e2) { console.error(e2); }
+        if (known) { showPassword(tr("acc.needsPassword")); return; }
+        setMode("signup");
+        $("suCc").value = $("liCc").value; $("suPhone").value = id;
+        $("suError").textContent = tr("acc.errNoAccount");
+        $("suName").focus();
+      }
+    }
     catch (ex) { err.textContent = authMessage(ex); }
     finally { btn.disabled = false; }
   });
-  $("liId").addEventListener("input", () => { $("liCcWrap").hidden = $("liId").value.includes("@"); });
+  $("liId").addEventListener("input", () => {
+    const isEmail = $("liId").value.includes("@");
+    if (isEmail) { $("liPwWrap").hidden = false; $("liForgot").hidden = false; }
+  });
   $("liForgot").addEventListener("click", async () => {
     const id = $("liId").value.trim();
     if (id.includes("@")) {

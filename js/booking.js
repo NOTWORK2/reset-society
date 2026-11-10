@@ -433,6 +433,12 @@
         return;
       }
       const s = service();
+      // Name + phone are enough to have an account: create it (or log in to it) first, so the
+      // booking belongs to it and shows under "My Sessions". Never blocks the booking.
+      if (!account && db.ensureAccount) {
+        const r = await db.ensureAccount({ name: state.name, phone: fullPhone(), email: state.email || "" });
+        if (r !== "skipped") await loadAccount();
+      }
       state.ref = await db.createBooking({
         service: s.id, serviceName: s.name, price: s.price, currency: C.currency,
         date: state.date, time: state.time, name: state.name, phone: fullPhone(),
@@ -462,6 +468,8 @@
     $("confirmSub").textContent = tr(fb ? "done.fbSub" : "done.waSub");
     $("waLabel").textContent = tr(fb ? "done.fbWa" : "done.waWa");
     $("confirmNote").innerHTML = tr(fb ? "done.fbNote" : "done.waNote");
+    $("accountNote").hidden = !fb;
+    if (fb) $("accountNote").innerHTML = tr("done.account");
     document.title = tr(fb ? "done.fbTitle" : "done.waTitle") + " | Reset Society";
   }
 

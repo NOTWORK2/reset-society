@@ -286,10 +286,30 @@ function loginEmail(identifier) {
   return s.includes("@") ? s.toLowerCase() : `${phoneDigits(s)}@${PHONE_DOMAIN}`;
 }
 
-async function customerSignUp({ name, phone, email, password }) {
+/* Pages listen for sign-in changes through onAuth. Upgrading an anonymous visitor to an account keeps
+   the same Firebase user, so Firebase itself reports nothing: notifyAuth() tells the page instead. */
+const authListeners = new Set();
+function onAuth(cb) { authListeners.add(cb); return onAuthStateChanged(auth, cb); }
+function notifyAuth() { authListeners.forEach((cb) => { try { cb(auth.currentUser); } catch (e) { console.error(e); } }); }
+
+/* Accounts have no password (the studio's choice): the phone number alone is the login.
+   Firebase still needs one, so it is derived from the number. */
+const phonePass = (digits) => `rs-${digits}-reset`;
+const phoneSignIn = (phone) => {
+  const digits = phoneDigits(phone);
+  return signInWithEmailAndPassword(auth, `${digits}@${PHONE_DOMAIN}`, phonePass(digits));
+};
+async function phoneRegistered(phone) {
+  await ensureSignedIn();
+  return (await getDoc(doc(db, "phones", phoneDigits(phone)))).exists();
+}
+
+/* Creates the account for a phone number, or logs in when that number already has one.
+   Returns { user, created }. Throws "needs-password" for old accounts that were made with a password. */
+async function customerSignUp({ name, phone, email }) {
   const digits = phoneDigits(phone);
   if (digits.length < 8) throw err("bad-phone", "Phone number too short");
-  const authEmail = (email && email.trim()) ? email.trim().toLowerCase() : `${digits}@${PHONE_DOMAIN}`;
+  const authEmail = `${digits}@${PHONE_DOMAIN}`, password = phonePass(digits);
   await auth.authStateReady();
   const cred = EmailAuthProvider.credential(authEmail, password);
   let user;
@@ -298,7 +318,12 @@ async function customerSignUp({ name, phone, email, password }) {
     if (auth.currentUser && auth.currentUser.isAnonymous) user = (await linkWithCredential(auth.currentUser, cred)).user;
     else user = (await createUserWithEmailAndPassword(auth, authEmail, password)).user;
   } catch (e) {
-    if (e.code === "auth/credential-already-in-use" || e.code === "auth/provider-already-linked") user = (await createUserWithEmailAndPassword(auth, authEmail, password)).user;
+    if (e.code === "auth/email-already-in-use" || e.code === "auth/credential-already-in-use") {
+      // This number already has an account: log in to it.
+      try { return { user: (await phoneSignIn(digits)).user, created: false }; }
+      catch (e2) { throw err("needs-password", "This account was created with a password"); }
+    }
+    if (e.code === "auth/provider-already-linked") user = (await createUserWithEmailAndPassword(auth, authEmail, password)).user;
     else throw e;
   }
   try { await updateProfile(user, { displayName: name }); } catch (e) { /* cosmetic */ }
@@ -317,7 +342,19 @@ async function customerSignUp({ name, phone, email, password }) {
     try { await user.delete(); } catch (e2) { /* leave for the owner to clean up */ }
     throw e;
   }
-  return user;
+  notifyAuth(); // the profile now exists: let the page show the account
+  return { user, created: true };
+}
+
+/* Booking or requesting a plan with a name and phone is enough to have an account:
+   called before the booking is saved, so it belongs to that account. Never blocks the booking. */
+async function ensureAccount({ name, phone, email }) {
+  try {
+    await auth.authStateReady();
+    if (auth.currentUser && !auth.currentUser.isAnonymous) return "signed-in";
+    const r = await customerSignUp({ name, phone, email });
+    return r.created ? "created" : "existing";
+  } catch (e) { return "skipped"; }
 }
 
 const customerSignIn = (identifier, password) => signInWithEmailAndPassword(auth, loginEmail(identifier), password);
@@ -397,11 +434,14 @@ window.__rsDbResolve({
   getCustomer,
   customerBookings,
   cancelBooking,
+  phoneSignIn,
+  phoneRegistered,
+  ensureAccount,
   phoneDigits,
   createPlanRequest,
   // admin
   auth,
-  onAuth: (cb) => onAuthStateChanged(auth, cb),
+  onAuth,
   signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
   signOut: () => signOut(auth),
   resetPassword: (email) => sendPasswordResetEmail(auth, email),

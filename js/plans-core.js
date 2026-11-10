@@ -180,6 +180,8 @@
       try {
         const db = await window.RS_DB;
         if (db) {
+          // The request's name + phone become the customer's account (or log in to it).
+          if (db.ensureAccount) await db.ensureAccount({ name, phone: fullPhone, email });
           await db.createPlanRequest({
             ref, type: tab === "memberships" ? "membership" : "pack", planId: p.id,
             label: fullLabel(p, tab, "en").slice(0, 80), sessions: p.sessions,
