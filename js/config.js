@@ -31,6 +31,7 @@ window.RS_CONFIG = {
   booking: {
     daysAhead: 60,        // how far ahead a session can be booked
     minLeadMinutes: 60,   // a slot today must start at least this long from now
+    changeHours: 24,      // customers may cancel / move their own session up to this many hours before it
     closedWeekdays: [],   // 0 = Sunday … 6 = Saturday, e.g. [5] closes Fridays
     slots: ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
   },

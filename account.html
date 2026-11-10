@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Jost:wght@300;400&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611082135" />
-  <script src="js/i18n.js?v=202611082135"></script>
-  <script src="js/theme.js?v=202611082135"></script>
+  <link rel="stylesheet" href="css/style.css?v=202611101438" />
+  <script src="js/i18n.js?v=202611101438"></script>
+  <script src="js/theme.js?v=202611101438"></script>
 </head>
 <body class="booking-page account-page">
   <span hidden data-i18n-title="acc.pageTitle"></span>
@@ -46,6 +46,7 @@
           <a href="index.html#ritual"><span class="menu-num">04</span><span class="menu-label" data-i18n="nav.ritual">The Ritual</span><span class="menu-arrow" data-icon="arrow"></span></a>
           <a href="index.html#visit"><span class="menu-num">05</span><span class="menu-label" data-i18n="nav.visitUs">Visit Us</span><span class="menu-arrow" data-icon="arrow"></span></a>
           <a href="account.html"><span class="menu-num">06</span><span class="menu-label" data-i18n="nav.account">My Sessions</span><span class="menu-arrow" data-icon="arrow"></span></a>
+          <a href="#" data-signout hidden><span class="menu-num">07</span><span class="menu-label" data-i18n="nav.signOut">Sign out</span><span class="menu-arrow" data-icon="arrow"></span></a>
       </nav>
       <a class="btn btn-light btn-block menu-cta" href="book.html"><span data-i18n="nav.book">Book a Session</span> <span data-icon="arrow" style="display:contents"></span></a>
       <div class="menu-foot">
@@ -168,6 +169,7 @@
             <h3 class="acc-sub caps" data-i18n="acc.upcomingList">Your upcoming sessions</h3>
             <ul class="acc-list" id="accUpcoming"></ul>
             <p class="acc-unsched muted" id="accUnsched" hidden></p>
+            <p class="acc-rule muted" data-i18n="acc.changeRule">You can change or cancel a session up to 24 hours before it starts.</p>
           </div>
 
           <a class="btn btn-primary btn-block" href="book.html" style="margin-top:18px"><span data-i18n="acc.bookNext">Book next session</span> <span data-icon="arrow" style="display:contents"></span></a>
@@ -180,10 +182,33 @@
     </div>
   </main>
 
-  <script src="js/config.js?v=202611082135"></script>
-  <script src="js/firebase-config.js?v=202611082135"></script>
-  <script src="js/common.js?v=202611082135"></script>
-  <script src="js/music.js?v=202611082135"></script>
-  <script src="js/account.js?v=202611082135"></script>
+  <!-- Move one of my sessions -->
+  <dialog class="policy" id="mvDialog" aria-labelledby="mvTitle">
+    <form class="policy-inner" id="mvForm" novalidate>
+      <h2 id="mvTitle" data-i18n="acc.moveTitle">Change session time</h2>
+      <p class="muted" id="mvWho"></p>
+      <div class="grid-2">
+        <div class="field">
+          <label for="mvDate" data-i18n="nb.date">Date</label>
+          <input class="input" id="mvDate" type="date" required />
+        </div>
+        <div class="field">
+          <label for="mvTime" data-i18n="nb.time">Time</label>
+          <select class="input" id="mvTime" style="appearance:auto" required></select>
+        </div>
+      </div>
+      <p class="form-error" id="mvError" role="alert"></p>
+      <div class="grid-2">
+        <button class="btn btn-outline" type="button" id="mvCancel" data-i18n="nb.cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="mvSave" data-i18n="acc.moveSave">Confirm new time</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/config.js?v=202611101438"></script>
+  <script src="js/firebase-config.js?v=202611101438"></script>
+  <script src="js/common.js?v=202611101438"></script>
+  <script src="js/music.js?v=202611101438"></script>
+  <script src="js/account.js?v=202611101438"></script>
 </body>
 </html>

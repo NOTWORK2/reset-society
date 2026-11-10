@@ -168,7 +168,7 @@
           <div class="bk-time">${fmtTime(b.time)}</div>
           <div class="bk-main">
             <div class="bk-top"><strong>${esc(b.name)}</strong>${member}<span class="badge ${st.cls}">${st.label}</span></div>
-            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${b.pay === "pack" ? tr("pay.pack") : `${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`}${b.source ? " · " + tr("admin.byAdmin") : ""}</div>
+            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${b.pay === "pack" ? tr("pay.pack") : `${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`}${b.source ? " · " + tr("admin.byAdmin") : ""}${b.cancelledBy === "customer" ? ` · <strong class="by-cust">${tr("admin.custCancelled")}</strong>` : ""}${b.movedBy === "customer" && b.status !== "cancelled" ? ` · <strong class="by-cust">${tr("admin.custMoved", { from: esc(b.rescheduledFrom || "") })}</strong>` : ""}</div>
             <div class="bk-meta">
               <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
               ${b.email ? ` · <a class="ltr" href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>

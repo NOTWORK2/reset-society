@@ -910,3 +910,27 @@ input:focus-visible + .plan-card { outline: 2px solid var(--brand); outline-offs
   :root:not([dir="rtl"]) .site-header .sound-btn.in-header { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
   :root:not([dir="rtl"]) .site-header .sound-btn.in-header .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* Sign in / sign out in the header and the menu */
+.nav-links a[hidden], .menu-nav a[hidden] { display: none !important; }
+
+/* Change / cancel my session */
+.acc-actions { display: flex; gap: 6px; flex-basis: 100%; justify-content: flex-end; }
+.acc-actions .btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.acc-late { font-size: 13px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.acc-rule { margin: 10px 4px 0; font-size: 13px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-error { color: #b3261e; font-size: 14px; min-height: 1.2em; margin: 8px 0 4px; }
+
+/* English links are long: below 1200px the header falls back to the menu button instead of squeezing
+   the links, and up to 1440px the gaps stay tight. (Arabic links are short and fit from 960px.) */
+@media (min-width: 960px) and (max-width: 1199px) {
+  :root:not([dir="rtl"]) .nav-links { display: none; }
+  :root:not([dir="rtl"]) .menu-btn { display: grid; }
+  :root:not([dir="rtl"]) .header-tools:not(.always) { display: flex; }
+}
+@media (min-width: 1200px) and (max-width: 1439px) {
+  :root:not([dir="rtl"]) .nav-links { gap: 16px; }
+  :root:not([dir="rtl"]) .site-header .sound-btn.in-header { width: 36px; height: 36px; padding: 0; justify-content: center; gap: 0; }
+  :root:not([dir="rtl"]) .site-header .sound-btn.in-header .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

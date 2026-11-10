@@ -19,6 +19,17 @@
   const toUTC = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
   const fmtDate = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(toUTC(s));
   const svcName = (b) => { const s = C.services.find((x) => x.id === b.service); return s ? L.field(s, "name") : (b.serviceName || b.service); };
+  const addDays = (s, n) => { const t = toUTC(s); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const slotMinutes = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+  function studioNow() {
+    const p = {};
+    new Intl.DateTimeFormat("en-CA", { timeZone: C.timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+    return { date: `${p.year}-${p.month}-${p.day}`, minutes: +p.hour * 60 + +p.minute };
+  }
+  // Minutes from now until a session starts (studio time).
+  const minutesUntil = (b) => { const n = studioNow(); return (toUTC(b.date) - toUTC(n.date)) / 60000 + slotMinutes(b.time) - n.minutes; };
+  const canChange = (b) => b.status === "confirmed" && minutesUntil(b) >= (C.booking.changeHours || 24) * 60;
 
   let DB = null;
   function view(name) { ["accStatus", "accAuth", "accJourney"].forEach((v) => { $(v).hidden = v !== name; }); }
@@ -141,11 +152,19 @@
     }
     // Every scheduled session (the owner can plan a whole pack ahead).
     const unscheduled = hasPack ? Math.max(0, (c.balance ?? 0) - upcoming.length) : 0;
-    $("accUpcomingWrap").hidden = upcoming.length < 2 && !unscheduled;
+    $("accUpcomingWrap").hidden = !upcoming.length && !unscheduled;
     $("accUnsched").hidden = !unscheduled;
     $("accUnsched").textContent = unscheduled ? tr("acc.unscheduled", { n: L.sessions(unscheduled) }) : "";
     const used = hasPack ? Math.max(0, c.packTotal - (c.balance ?? 0)) : 0;
-    $("accUpcoming").innerHTML = upcoming.map((b, i) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>${hasPack ? `<span class="acc-num">${tr("sess.num", { i: used + i + 1, total: c.packTotal })}</span>` : ""}<span class="badge st-confirmed">${tr("acc.booked")}</span></li>`).join("");
+    lastRows = rows;
+    $("accUpcoming").innerHTML = upcoming.map((b, i) => `<li>
+        <strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>
+        ${hasPack ? `<span class="acc-num">${tr("sess.num", { i: used + i + 1, total: c.packTotal })}</span>` : ""}
+        <span class="badge st-confirmed">${tr("acc.booked")}</span>
+        <span class="acc-actions">${canChange(b)
+          ? `<button class="btn btn-outline btn-sm" type="button" data-move="${esc(b.ref)}">${tr("acc.move")}</button><button class="btn btn-outline btn-sm" type="button" data-cancel="${esc(b.ref)}">${tr("acc.cancel")}</button>`
+          : `<a class="acc-late" target="_blank" rel="noopener" href="${waLink(tr("acc.lateMsg", { service: svcName(b), date: fmtDate(b.date), time: L.time(b.time) }))}">${tr("acc.changeLate")}</a>`}</span>
+      </li>`).join("");
     const recent = visits.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 10);
     $("accHistory").innerHTML = recent.length
       ? recent.map((b) => `<li><strong>${esc(svcName(b))}</strong><span>${esc(fmtDate(b.date))} · ${esc(L.time(b.time))}</span>${b.status === "completed" ? `<span class="badge st-done">${tr("acc.done")}</span>` : ""}</li>`).join("")
@@ -153,6 +172,71 @@
     $("accWa").href = waLink(tr("acc.waMsg", { name }));
     view("accJourney");
   }
+
+  /* ---------- change or cancel one of my sessions ---------- */
+  let lastRows = [], lastUser = null, mvBooking = null, mvAvail = { counts: {}, closed: new Set() };
+  const bookingByRef = (ref) => lastRows.find((b) => b.ref === ref);
+  function mvSlots(dateStr) {
+    const b = mvBooking; if (!b) return [];
+    const dow = toUTC(dateStr).getUTCDay();
+    if (C.booking.closedWeekdays.includes(dow) || mvAvail.closed.has(dateStr)) return [];
+    const s = C.services.find((x) => x.id === b.service);
+    const cap = (s && s.capacity) || 1, now = studioNow();
+    return C.booking.slots.filter((t) => {
+      const future = dateStr > now.date || (dateStr === now.date && slotMinutes(t) >= now.minutes + C.booking.minLeadMinutes);
+      const taken = mvAvail.counts[`${dateStr}_${t}_${b.service}`] || 0;
+      const same = dateStr === b.date && t === b.time;
+      return future && (taken < cap || same);
+    });
+  }
+  function mvFillTimes() {
+    const d = $("mvDate").value;
+    const slots = d ? mvSlots(d) : [];
+    $("mvTime").innerHTML = slots.length
+      ? slots.map((t) => `<option value="${t}" ${mvBooking && d === mvBooking.date && t === mvBooking.time ? "selected" : ""}>${L.time(t)}</option>`).join("")
+      : `<option value="">${tr("acc.noSlots")}</option>`;
+    $("mvSave").disabled = !slots.length;
+  }
+  async function openMove(b) {
+    mvBooking = b;
+    $("mvWho").textContent = `${svcName(b)} · ${fmtDate(b.date)} · ${L.time(b.time)}`;
+    $("mvError").textContent = "";
+    const t = today();
+    $("mvDate").min = t; $("mvDate").max = addDays(t, C.booking.daysAhead); $("mvDate").value = b.date;
+    $("mvTime").innerHTML = `<option value="">…</option>`; $("mvSave").disabled = true;
+    $("mvDialog").showModal();
+    try { mvAvail = await DB.loadAvailability(t, addDays(t, C.booking.daysAhead)); }
+    catch (e) { console.error(e); mvAvail = { counts: {}, closed: new Set() }; }
+    mvFillTimes();
+  }
+  $("mvDate").addEventListener("change", mvFillTimes);
+  $("mvCancel").addEventListener("click", () => $("mvDialog").close());
+  $("mvForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const date = $("mvDate").value, time = $("mvTime").value;
+    if (!date || !time) { $("mvError").textContent = tr("acc.noSlots"); return; }
+    if (date === mvBooking.date && time === mvBooking.time) { $("mvDialog").close(); return; }
+    $("mvSave").disabled = true;
+    try {
+      await DB.rescheduleBooking(mvBooking, date, time, { by: "customer" });
+      $("mvDialog").close();
+      toast(tr("acc.moved", { date: fmtDate(date), time: L.time(time) }));
+      if (lastUser) renderJourney(lastUser);
+    } catch (err) {
+      console.error(err);
+      $("mvError").textContent = tr(err.code === "slot-full" ? "acc.errFull" : "acc.errChange");
+    } finally { $("mvSave").disabled = false; }
+  });
+  $("accUpcoming").addEventListener("click", async (e) => {
+    const mv = e.target.closest("[data-move]");
+    if (mv) { const b = bookingByRef(mv.dataset.move); if (b) openMove(b); return; }
+    const cn = e.target.closest("[data-cancel]"); if (!cn) return;
+    const b = bookingByRef(cn.dataset.cancel); if (!b) return;
+    if (!confirm(tr("acc.confirmCancel", { service: svcName(b), date: fmtDate(b.date), time: L.time(b.time) }))) return;
+    cn.disabled = true;
+    try { await DB.cancelBooking(b); toast(tr("acc.cancelled")); if (lastUser) renderJourney(lastUser); }
+    catch (err) { console.error(err); toast(tr("acc.errChange")); cn.disabled = false; }
+  });
 
   /* ---------- start ---------- */
   (async () => {
@@ -170,6 +254,7 @@
         view("accStatus");
         return;
       }
+      lastUser = user;
       renderJourney(user);
     });
   })();

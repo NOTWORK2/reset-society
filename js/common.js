@@ -148,6 +148,28 @@
     apply();
   }
 
+  /* Header + menu: "My Sessions" reads "Sign in" for visitors; signed-in customers also get "Sign out". */
+  async function initAuthLinks() {
+    const accountLinks = [...document.querySelectorAll('.nav-links a[href="account.html"], .menu-nav a[href="account.html"]')];
+    const signouts = [...document.querySelectorAll("[data-signout]")];
+    if (!accountLinks.length && !signouts.length) return;
+    const db = await window.RS_DB; if (!db) return;
+    const L = window.RS_I18N;
+    const apply = (signedIn) => {
+      accountLinks.forEach((a) => {
+        const label = a.querySelector(".menu-label") || a;
+        label.dataset.i18n = signedIn ? "nav.account" : "nav.signIn";
+        label.textContent = L.t(label.dataset.i18n);
+      });
+      signouts.forEach((b) => { b.hidden = !signedIn; });
+    };
+    db.onAuth((user) => apply(!!user && !user.isAnonymous));
+    signouts.forEach((b) => b.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try { await db.signOut(); toast(L.t("nav.signedOut")); } catch (err) { console.error(err); }
+    }));
+  }
+
   window.RS = { ICONS, waLink, esc, hydrate, toast, imgAttrs, fillMedia, mediaCache };
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -155,5 +177,6 @@
     initMenu();
     initHeader();
     initReveal();
+    initAuthLinks();
   });
 })();

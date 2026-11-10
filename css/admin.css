@@ -218,3 +218,4 @@ code { font-size: .92em; background: var(--card); border: 1px solid var(--line);
   .sess-row .cd-actions { grid-column: auto; }
 }
 .sess-row .ref { white-space: nowrap; }
+.by-cust { color: #a97c2a; font-weight: 500; }

@@ -146,15 +146,26 @@ async function setStatus(booking, status, customerUid) {
   await batch.commit();
 }
 
-/* Owner moves a booking to another date/time: the old place is freed and a new one taken. */
-async function rescheduleBooking(booking, date, time) {
+/* A customer cancels their own booking (rules allow it up to 24 h before; the place is freed). */
+async function cancelBooking(booking, { by = "customer" } = {}) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "bookings", booking.ref), { status: "cancelled", updatedAt: serverTimestamp(), cancelledBy: by });
+  if (booking.lockId) batch.delete(doc(db, "slotLocks", booking.lockId));
+  await batch.commit();
+}
+
+/* Moves a booking to another date/time: the old place is freed and a new one taken.
+   Used by the owner, and by customers for their own bookings (by = "customer"). */
+async function rescheduleBooking(booking, date, time, { by = null } = {}) {
   const n = await freePlace(date, time, booking.service);
   if (!n) throw err("slot-full", "That time is full for this service.");
   const lid = lockId(date, time, booking.service, n);
   const batch = writeBatch(db);
   if (booking.lockId) batch.delete(doc(db, "slotLocks", booking.lockId));
   batch.set(doc(db, "slotLocks", lid), { date, time, service: booking.service, n, bookingId: booking.ref });
-  batch.update(doc(db, "bookings", booking.ref), { date, time, lockId: lid, updatedAt: serverTimestamp(), rescheduledFrom: `${booking.date} ${booking.time}` });
+  const upd = { date, time, lockId: lid, updatedAt: serverTimestamp(), rescheduledFrom: `${booking.date} ${booking.time}` };
+  if (by) upd.movedBy = by;
+  batch.update(doc(db, "bookings", booking.ref), upd);
   await batch.commit();
 }
 
@@ -385,6 +396,7 @@ window.__rsDbResolve({
   customerSignIn,
   getCustomer,
   customerBookings,
+  cancelBooking,
   phoneDigits,
   createPlanRequest,
   // admin

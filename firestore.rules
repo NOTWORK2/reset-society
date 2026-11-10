@@ -38,6 +38,17 @@ service cloud.firestore {
     function bookingPath(id) { return /databases/$(database)/documents/bookings/$(id); }
     function lockPath(id) { return /databases/$(database)/documents/slotLocks/$(id); }
 
+    // When a session starts (studio time is UTC+4), from its 'YYYY-MM-DD' and 'HH:MM' strings.
+    function startsAt(d, t) {
+      let p = d.split('-');
+      let q = t.split(':');
+      return timestamp.date(int(p[0]), int(p[1]), int(p[2])) + duration.value(int(q[0]), 'h') + duration.value(int(q[1]), 'm') - duration.value(4, 'h');
+    }
+    // A booking belongs to the signed-in customer: made from their account or on their registered phone.
+    function ownsBooking(d) {
+      return signedIn() && (d.uid == request.auth.uid || d.get('phoneDigits', '') == myPhone());
+    }
+
     function myPhone() {
       let c = /databases/$(database)/documents/customers/$(request.auth.uid);
       return exists(c) ? get(c).data.get('phoneDigits', '-') : '-';
@@ -128,11 +139,26 @@ service cloud.firestore {
         && lockId == request.resource.data.date + '_' + request.resource.data.time + '_'
                      + request.resource.data['service'] + '_' + string(request.resource.data.n)
         && str(request.resource.data.bookingId, 20)
-        && !exists(bookingPath(request.resource.data.bookingId))
         && getAfter(bookingPath(request.resource.data.bookingId)).data.lockId == lockId
+        && (
+          // a new booking saved in the same batch …
+          !exists(bookingPath(request.resource.data.bookingId))
+          // … or a customer moving their own confirmed booking to this place
+          || (ownsBooking(get(bookingPath(request.resource.data.bookingId)).data)
+              && getAfter(bookingPath(request.resource.data.bookingId)).data.status == 'confirmed'
+              && getAfter(bookingPath(request.resource.data.bookingId)).data.date == request.resource.data.date
+              && getAfter(bookingPath(request.resource.data.bookingId)).data.time == request.resource.data.time
+              && get(bookingPath(request.resource.data.bookingId)).data['service'] == request.resource.data['service'])
+        )
       );
       allow update: if false;
-      allow delete: if isAdmin();
+      // The owner frees the place when cancelling or moving their own booking (same batch).
+      allow delete: if isAdmin() || (
+        signedIn()
+        && ownsBooking(get(bookingPath(resource.data.bookingId)).data)
+        && (getAfter(bookingPath(resource.data.bookingId)).data.status == 'cancelled'
+            || getAfter(bookingPath(resource.data.bookingId)).data.lockId != lockId)
+      );
     }
 
     function validBooking(id, d) {
@@ -191,7 +217,26 @@ service cloud.firestore {
       // Customers see their own bookings: made from their account, or matching their registered phone.
       allow read: if isAdmin() || (signedIn() && (resource.data.uid == request.auth.uid || resource.data.phoneDigits == myPhone()));
       allow create: if isAdmin() || (signedIn() && validBooking(id, request.resource.data));
-      allow update, delete: if isAdmin();
+      allow delete: if isAdmin();
+      // Customers may cancel or move their own confirmed booking up to 24 hours before it starts.
+      allow update: if isAdmin() || (
+        ownsBooking(resource.data)
+        && resource.data.status == 'confirmed'
+        && startsAt(resource.data.date, resource.data.time) > request.time + duration.value(24, 'h')
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'cancelledBy'])
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.cancelledBy == 'customer')
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['date', 'time', 'lockId', 'updatedAt', 'rescheduledFrom', 'movedBy'])
+            && request.resource.data.movedBy == 'customer'
+            && validDate(request.resource.data.date) && validTime(request.resource.data.time)
+            && dayOpen(request.resource.data.date)
+            && startsAt(request.resource.data.date, request.resource.data.time) > request.time
+            && request.resource.data.lockId != resource.data.lockId
+            && getAfter(lockPath(request.resource.data.lockId)).data.bookingId == id
+            && !existsAfter(lockPath(resource.data.lockId)))
+        )
+      );
     }
   }
 }
