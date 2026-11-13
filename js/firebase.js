@@ -102,6 +102,7 @@ async function createBooking(b, { asAdmin = false } = {}) {
       status: "confirmed", lockId: lid, uid: user.uid, createdAt: serverTimestamp()
     };
     if (b.email) data.email = b.email;
+    if (b.choices && b.choices.length) data.choices = b.choices.slice(0, 6); // "build your own": chosen service ids
     if (asAdmin) data.source = b.source || "admin";
     const batch = writeBatch(db);
     batch.set(doc(db, "slotLocks", lid), { date: b.date, time: b.time, service: b.service, n, bookingId: ref });

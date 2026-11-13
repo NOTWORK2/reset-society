@@ -104,6 +104,24 @@ window.RS_CONFIG = {
       image: "assets/img/compression-boots.jpg"
     },
     {
+      // The customer builds the session: `pick` of the sessions listed in `pickFrom` (set in the admin).
+      id: "build-your-recovery",
+      name: "Build Your Recovery",
+      name_ar: "صمّم تعافيك",
+      duration_ar: "30 دقيقة",
+      short_ar: "اختر جلستين في زيارة واحدة.",
+      long_ar: "اجمع جلستين من اختيارك في زيارة واحدة.",
+      price: 90,
+      duration: "30 min",
+      minutes: 30,
+      capacity: 1,
+      short: "Choose any two in one visit.",
+      long: "Combine two sessions of your choice in one visit.",
+      image: "assets/img/leaves-wall.jpg",
+      pick: 2,
+      pickFrom: ["cold-plunge", "sauna", "compression-boots"]
+    },
+    {
       id: "full-recovery",
       name: "Full Recovery",
       name_ar: "التعافي الكامل",
@@ -131,6 +149,13 @@ window.RS_applySite = function (site) {
     if (site[k] !== undefined && site[k] !== null) C[k] = site[k];
   });
   if (site.booking) Object.assign(C.booking, site.booking);
+  // "Build Your Recovery" was added in the admin before services had the "customer chooses" setting:
+  // until the owner saves that service again, the customer picks two of the single sessions.
+  (C.services || []).forEach((s) => {
+    if (s.id !== "build-your-recovery" || s.pick !== undefined) return;
+    s.pick = 2;
+    s.pickFrom = ["cold-plunge", "sauna", "compression-boots"].filter((id) => C.services.some((x) => x.id === id));
+  });
 };
 try {
   const cached = JSON.parse(localStorage.getItem("rs-site"));

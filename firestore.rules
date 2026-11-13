@@ -20,7 +20,8 @@ service cloud.firestore {
             'cold-plunge': 1,
             'sauna': 1,
             'compression-boots': 1,
-            'full-recovery': 1
+            'full-recovery': 1,
+            'build-your-recovery': 1
           }.get(svc, 0);
     }
 
@@ -164,7 +165,7 @@ service cloud.firestore {
     function validBooking(id, d) {
       let lock = getAfter(lockPath(d.lockId)).data;
       return d.keys().hasOnly(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
-                               'name', 'phone', 'phoneDigits', 'email', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
+                               'name', 'phone', 'phoneDigits', 'email', 'pay', 'status', 'lockId', 'uid', 'createdAt', 'choices'])
         && d.keys().hasAll(['ref', 'service', 'serviceName', 'price', 'currency', 'date', 'time',
                             'name', 'phone', 'pay', 'status', 'lockId', 'uid', 'createdAt'])
         && id.matches('^RS-[0-9]{5}$') && d.ref == id
@@ -179,6 +180,8 @@ service cloud.firestore {
         && str(d.phone, 30)
         && (!('phoneDigits' in d) || (d.phoneDigits is string && d.phoneDigits.size() <= 15))
         && (!('email' in d) || (d.email is string && d.email.size() <= 120))
+        // "Build your own" sessions: ids of the sessions the customer picked.
+        && (!('choices' in d) || (d.choices is list && d.choices.size() <= 6 && d.choices.join(',').size() <= 300))
         // Online payment isn't live yet; allow 'online' only once payments are verified server-side.
         && d.pay == 'location'
         && d.createdAt == request.time

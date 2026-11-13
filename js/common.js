@@ -170,7 +170,31 @@
     }));
   }
 
-  window.RS = { ICONS, waLink, esc, hydrate, toast, imgAttrs, fillMedia, mediaCache };
+  /* "Build your own" services: the customer chooses `pick` of the sessions in `pickFrom`.
+     A booking then carries the chosen service ids in `choices`. */
+  function pickOptions(s) {
+    if (!s || !(Number(s.pick) > 0)) return [];
+    return (s.pickFrom || []).map((id) => C.services.find((x) => x.id === id))
+      .filter((x) => x && x.id !== s.id && x.active !== false);
+  }
+  function pickCount(s) {
+    const n = pickOptions(s).length;
+    return n ? Math.min(Math.round(Number(s.pick)), n) : 0;
+  }
+  function choiceNames(ids) {
+    const L = window.RS_I18N;
+    return (Array.isArray(ids) ? ids : []).map((id) => {
+      const s = C.services.find((x) => x.id === id);
+      return s ? L.field(s, "name") : id;
+    });
+  }
+  // "Build Your Recovery: Cold Plunge + Compression Boots"
+  function withChoices(name, ids) {
+    const names = choiceNames(ids);
+    return names.length ? `${name}: ${names.join(" + ")}` : name;
+  }
+
+  window.RS = { ICONS, waLink, esc, hydrate, toast, imgAttrs, fillMedia, mediaCache, pickOptions, pickCount, choiceNames, withChoices };
 
   document.addEventListener("DOMContentLoaded", () => {
     hydrate(document);

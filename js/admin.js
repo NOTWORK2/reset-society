@@ -21,6 +21,8 @@
   const fmtTime = (hhmm) => L.time(hhmm);
   const svc = (id, fallbackName) => C.services.find((s) => s.id === id) || { name: fallbackName || id, capacity: 1 };
   const svcName = (id, fallbackName) => L.field(svc(id, fallbackName), "name");
+  // A booking's service as shown in lists: "Build Your Recovery: Cold Plunge + Compression Boots".
+  const bSvc = (b) => RS.withChoices(svcName(b.service, b.serviceName), b.choices);
 
   const STATUS = {
     confirmed: { label: tr("st.confirmed"), cls: "st-confirmed" },
@@ -95,7 +97,7 @@
     firstSnapshot = true;
     unsubUpcoming = DB.watchBookings({ from: t }, (rows) => {
       if (!firstSnapshot) {
-        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(tr("admin.newToast", { name: b.name, service: svcName(b.service, b.serviceName), date: fmtDate(b.date), time: fmtTime(b.time) })));
+        rows.filter((b) => !knownRefs.has(b.ref)).forEach((b) => toast(tr("admin.newToast", { name: b.name, service: bSvc(b), date: fmtDate(b.date), time: fmtTime(b.time) })));
       }
       knownRefs = new Set(rows.map((b) => b.ref));
       firstSnapshot = false;
@@ -162,13 +164,13 @@
       const cust = customerFor(b);
       const member = cust && cust.packTotal ? `<span class="badge member-badge" title="${esc(cust.packName || "")}">${tr("cust.member")} · ${tr("cust.left", { n: cust.balance ?? 0, total: cust.packTotal })}</span>` : "";
       const phoneDigits = String(b.phone || "").replace(/\D/g, "");
-      const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: svcName(b.service, b.serviceName), date: fmtDate(b.date), time: fmtTime(b.time) });
+      const msg = tr("admin.msgCustomer", { name: b.name, ref: b.ref, service: bSvc(b), date: fmtDate(b.date), time: fmtTime(b.time) });
       html += `
         <article class="bk ${b.status === "cancelled" ? "is-cancelled" : ""} ${member ? "is-member" : ""}">
           <div class="bk-time">${fmtTime(b.time)}</div>
           <div class="bk-main">
             <div class="bk-top"><strong>${esc(b.name)}</strong>${member}<span class="badge ${st.cls}">${st.label}</span></div>
-            <div class="bk-meta">${esc(svcName(b.service, b.serviceName))} · ${b.pay === "pack" ? tr("pay.pack") : `${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`}${b.source ? " · " + tr("admin.byAdmin") : ""}${b.cancelledBy === "customer" ? ` · <strong class="by-cust">${tr("admin.custCancelled")}</strong>` : ""}${b.movedBy === "customer" && b.status !== "cancelled" ? ` · <strong class="by-cust">${tr("admin.custMoved", { from: esc(b.rescheduledFrom || "") })}</strong>` : ""}</div>
+            <div class="bk-meta">${esc(bSvc(b))} · ${b.pay === "pack" ? tr("pay.pack") : `${esc(L.money(b.price ?? ""))} · ${b.pay === "online" ? tr("pay.paidOnline") : tr("pay.location")}`}${b.source ? " · " + tr("admin.byAdmin") : ""}${b.cancelledBy === "customer" ? ` · <strong class="by-cust">${tr("admin.custCancelled")}</strong>` : ""}${b.movedBy === "customer" && b.status !== "cancelled" ? ` · <strong class="by-cust">${tr("admin.custMoved", { from: esc(b.rescheduledFrom || "") })}</strong>` : ""}</div>
             <div class="bk-meta">
               <a class="ltr" href="tel:${esc(phoneDigits ? "+" + phoneDigits : "")}">${esc(b.phone)}</a>
               ${b.email ? ` · <a class="ltr" href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : ""} · <span class="ref">${esc(b.ref)}</span>
@@ -274,6 +276,15 @@
   // A session of the pack's service for a member with sessions left is paid from the pack.
   const packService = () => (C.plans && C.plans.serviceId) || "full-recovery";
   const fromPack = (cust, serviceId) => !!(cust && cust.packTotal && (cust.balance ?? 0) > 0 && serviceId === packService());
+  /* A "build your own" service in the new-booking form: tick the sessions the customer wants. */
+  function renderNbPick() {
+    const s = svc($("nbService").value), n = RS.pickCount(s);
+    $("nbPickWrap").hidden = !n;
+    $("nbPickLabel").textContent = n ? tr("pick.title", { n }) : "";
+    $("nbPick").innerHTML = n ? RS.pickOptions(s).map((o) => `
+      <label class="check"><input type="checkbox" value="${esc(o.id)}" /> <span>${esc(L.field(o, "name"))}</span></label>`).join("") : "";
+  }
+  $("nbService").addEventListener("change", renderNbPick);
   function openNewBooking(cust) {
     nbCust = cust || null;
     $("nbDate").value = today(); $("nbDate").min = today();
@@ -286,6 +297,7 @@
       const svcId = cust.packTotal ? packService() : null;
       if (svcId && [...$("nbService").options].some((o) => o.value === svcId)) $("nbService").value = svcId;
     }
+    renderNbPick();
     dlg.showModal();
     setTimeout(() => $(cust ? "nbDate" : "nbName").focus(), 50);
   }
@@ -301,6 +313,12 @@
       name: $("nbName").value.trim(), phone: $("nbPhone").value.trim(), email: "", pay: pack ? "pack" : "location", source: "admin"
     };
     if (!b.date || !b.name || b.phone.replace(/\D/g, "").length < 7) { $("newError").textContent = tr("nb.errFill"); return; }
+    $("newError").textContent = "";
+    const nPick = RS.pickCount(s);
+    if (nPick) {
+      b.choices = [...$("nbPick").querySelectorAll("input:checked")].map((i) => i.value);
+      if (b.choices.length !== nPick) { $("newError").textContent = tr("pick.toast", { n: nPick }); return; }
+    }
     $("newSave").disabled = true;
     try {
       const ref = await DB.createBooking(b, { asAdmin: true });
@@ -405,7 +423,7 @@
         <img ${RS.imgAttrs(s.image)} alt="" />
         <div class="svc-info">
           <strong>${esc(L.field(s, "name"))}</strong>
-          <span class="muted small">${L.money(s.price)} · ${esc(L.field(s, "duration") || "")} · ${tr("set.capShort", { n: s.capacity || 1 })}</span>
+          <span class="muted small">${L.money(s.price)} · ${esc(L.field(s, "duration") || "")} · ${tr("set.capShort", { n: s.capacity || 1 })}${RS.pickCount(s) ? ` · ${tr("set.pickShort", { n: RS.pickCount(s) })}` : ""}</span>
           ${s.active === false ? `<span class="badge st-cancelled">${tr("set.hidden")}</span>` : ""}
           ${s.featured ? `<span class="badge st-done">${tr("services.best")}</span>` : ""}
         </div>
@@ -465,6 +483,13 @@
     $("svPrice").value = s.price ?? "";
     $("svMinutes").value = s.minutes ?? "";
     $("svCapacity").value = s.capacity || 1;
+    // "Customer builds the session": how many they choose, and from which of the other fixed sessions.
+    const pick = [2, 3].includes(Number(s.pick)) ? Number(s.pick) : 0;
+    $("svPick").innerHTML = `<option value="0">${tr("set.pickNone")}</option>` + [2, 3].map((n) => `<option value="${n}">${tr("set.pickN", { n })}</option>`).join("");
+    $("svPick").value = String(pick);
+    $("svPickFrom").innerHTML = C.services.filter((x) => x.id !== s.id && !(Number(x.pick) > 0)).map((x) => `
+      <label class="check"><input type="checkbox" value="${esc(x.id)}" ${(s.pickFrom || []).includes(x.id) ? "checked" : ""} /> <span>${esc(L.field(x, "name"))}</span></label>`).join("");
+    $("svPickFrom").hidden = !pick;
     $("svDurEn").value = s.duration || "";
     $("svDurAr").value = s.duration_ar || "";
     $("svShortEn").value = s.short || "";
@@ -542,6 +567,9 @@
       return;
     }
     const minutes = Math.max(5, Math.round(Number($("svMinutes").value) || 30));
+    const pick = Number($("svPick").value) || 0;
+    const pickFrom = pick ? [...$("svPickFrom").querySelectorAll("input:checked")].map((i) => i.value) : [];
+    if (pick && pickFrom.length < pick) { $("svcError").textContent = tr("set.pickErr", { n: pick }); btn.disabled = false; return; }
     const svcData = {
       ...(old || {}),
       id: old ? old.id : makeServiceId(nameEn),
@@ -558,7 +586,9 @@
       long_ar: $("svLongAr").value.trim(),
       image,
       featured: $("svFeatured").checked,
-      active: $("svActive").checked
+      active: $("svActive").checked,
+      pick,
+      pickFrom
     };
     const index = editing;
     const ok = await saveSite((site) => {
@@ -571,6 +601,7 @@
     }
   });
   $("addServiceBtn").addEventListener("click", () => openService(null));
+  $("svPick").addEventListener("change", () => { $("svPickFrom").hidden = !Number($("svPick").value); });
 
   /* contact */
   $("contactForm").addEventListener("submit", async (e) => {
@@ -772,7 +803,7 @@
             <div class="bk-top"><strong>${esc(c.name || "")}</strong>${pack}</div>
             <div class="bk-meta"><a class="ltr" href="tel:+${esc(digits)}">${esc(c.phone || "")}</a>${c.hasEmail && c.email ? ` · <a class="ltr" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ""}</div>
             <div class="bk-meta">${tr("cust.upcoming", { n: st.up })}${when ? ` · ${tr("cust.registered", { date: when })}` : ""}</div>
-            <div class="bk-meta cust-next">${st.next ? tr("cust.next", { when: `<strong>${esc(fmtDate(st.next.date))} · ${esc(fmtTime(st.next.time))}</strong> · ${esc(svcName(st.next.service, st.next.serviceName))}` }) : tr("cust.noNext")}</div>
+            <div class="bk-meta cust-next">${st.next ? tr("cust.next", { when: `<strong>${esc(fmtDate(st.next.date))} · ${esc(fmtTime(st.next.time))}</strong> · ${esc(bSvc(st.next))}` }) : tr("cust.noNext")}</div>
           </div>
           <div class="bk-actions">
             ${digits ? `<a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}">${tr("act.whatsapp")}</a>` : ""}
@@ -848,7 +879,7 @@
     const bRow = (b, label, actions) => {
       const st = STATUS[b.status] || STATUS.confirmed;
       return row(`${esc(fmtDate(b.date))} · ${esc(fmtTime(b.time))}`, label,
-        `${esc(svcName(b.service, b.serviceName))} · <span class="ref">${esc(b.ref)}</span>`,
+        `${esc(bSvc(b))} · <span class="ref">${esc(b.ref)}</span>`,
         `<span class="badge ${st.cls}">${st.label}</span>`, actions);
     };
     const upActions = (b) => `<button class="btn btn-outline btn-sm" type="button" data-reschedule="${esc(b.ref)}">${tr("admin.reschedule")}</button>${btn("completed", b.ref, tr("act.done"))}${btn("cancelled", b.ref, tr("act.cancel"), "btn-danger")}`;
@@ -1043,7 +1074,7 @@
   let rsBooking = null;
   function openReschedule(b) {
     rsBooking = b;
-    $("rsWho").textContent = `${b.name} · ${svcName(b.service, b.serviceName)} · ${fmtDate(b.date)} ${fmtTime(b.time)}`;
+    $("rsWho").textContent = `${b.name} · ${bSvc(b)} · ${fmtDate(b.date)} ${fmtTime(b.time)}`;
     $("rsDate").value = b.date; $("rsDate").min = today();
     $("rsTime").innerHTML = C.booking.slots.map((t) => `<option value="${t}" ${t === b.time ? "selected" : ""}>${fmtTime(t)}</option>`).join("");
     $("rsError").textContent = "";

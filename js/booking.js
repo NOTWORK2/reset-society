@@ -63,6 +63,15 @@
   }
   const activeServices = () => C.services.filter((s) => s.active !== false);
   const service = () => activeServices().find((s) => s.id === state.serviceId);
+  /* "Build your own" sessions: which of the offered sessions the guest picked (valid ones only). */
+  const chosen = () => {
+    const ids = RS.pickOptions(service()).map((x) => x.id);
+    return (state.choices || []).filter((id) => ids.includes(id));
+  };
+  const choicesOk = () => chosen().length === RS.pickCount(service());
+  // The same choices in the order they are listed (chosen() keeps the order they were tapped in).
+  const pickedIds = () => RS.pickOptions(service()).map((x) => x.id).filter((id) => chosen().includes(id));
+  const svcLabel = () => RS.withChoices(nm(service()), pickedIds());
 
   /* ---------- Firebase availability ---------- */
   let DB = null, dbState = "pending"; // pending → on (Firebase) | off (WhatsApp only)
@@ -150,7 +159,7 @@
   }
   function firstIncomplete(target) {
     const idx = STEPS.indexOf(target);
-    if (idx >= 1 && !service()) return "service";
+    if (idx >= 1 && (!service() || !choicesOk())) return "service";
     if (target === "confirmed") return state.ref ? null : "payment";
     if (idx >= 2 && !slotStillOpen()) return "datetime";
     if (idx >= 3 && !detailsValid()) return "details";
@@ -160,7 +169,7 @@
   /* ---------- rendering ---------- */
   function renderServices() {
     const list = $("serviceList");
-    list.querySelectorAll("input, label").forEach((el) => el.remove());
+    list.querySelectorAll("input, label, .pick-box").forEach((el) => el.remove());
     list.insertAdjacentHTML("beforeend", activeServices().map((s) => `
       <input class="sr-only" type="radio" name="service" id="svc-${esc(s.id)}" value="${esc(s.id)}" ${state.serviceId === s.id ? "checked" : ""} />
       <label class="service-opt" for="svc-${esc(s.id)}">
@@ -171,10 +180,23 @@
           <p>${esc(L.field(s, "short"))}</p>
         </div>
         <span class="radio">${ICONS.check}</span>
-      </label>`).join(""));
+      </label>${pickBoxHTML(s)}`).join(""));
     RS.fillMedia(list);
     renderMemberships();
     showBookTab(bookTab);
+  }
+
+  /* Under a "build your own" service: the sessions to choose from (shown while it is selected). */
+  function pickBoxHTML(s) {
+    const n = RS.pickCount(s);
+    if (!n) return "";
+    const picked = state.serviceId === s.id ? chosen() : [];
+    return `<div class="pick-box" data-pick-for="${esc(s.id)}" role="group" aria-label="${esc(tr("pick.title", { n }))}">
+        <p class="pick-title"><span>${tr("pick.title", { n })}</span><span class="pick-count" data-pick-count>${tr("pick.count", { k: picked.length, n })}</span></p>
+        <div class="pick-opts">${RS.pickOptions(s).map((o) => `
+          <label class="pick-opt"><input type="checkbox" name="pick" value="${esc(o.id)}" ${picked.includes(o.id) ? "checked" : ""} /><span>${esc(nm(o))}</span></label>`).join("")}
+        </div>
+      </div>`;
   }
 
   function renderPolicy() {
@@ -225,7 +247,7 @@
     const row = (icon, label, value) => `<div class="summary-row">${ICONS[icon]}<span>${label}</span><span class="v">${value}</span></div>`;
     let html = `<div class="summary-top">
         <img ${RS.imgAttrs(s.image)} alt="" />
-        <div><h3>${esc(nm(s))}</h3><small>${tr("sum.single")}</small></div>
+        <div><h3>${esc(nm(s))}</h3><small>${RS.pickCount(s) ? esc(RS.choiceNames(pickedIds()).join(" + ")) || tr("pick.title", { n: RS.pickCount(s) }) : tr("sum.single")}</small></div>
         <span class="price">${kind === "full" ? "" : L.money(s.price)}</span>
       </div>`;
     html += row("calendar", tr("sum.date"), state.date ? fmtDate(state.date) : "—");
@@ -356,6 +378,7 @@
     const i = STEPS.indexOf(current());
     const step = current();
     if (step === "service" && !service()) { toast(tr("toast.chooseSession")); return; }
+    if (step === "service" && !choicesOk()) { toast(tr("pick.toast", { n: RS.pickCount(service()) })); return; }
     if (step === "datetime" && !state.time) { toast(tr("toast.chooseTime")); return; }
     if (step === "datetime" && account) {
       applyAccount();
@@ -395,7 +418,7 @@
       tr("msg.book"),
       "",
       `${tr("msg.ref")}: ${state.ref}`,
-      `${tr("msg.service")}: ${nm(s)} (${L.money(s.price)})`,
+      `${tr("msg.service")}: ${svcLabel()} (${L.money(s.price)})`,
       `${tr("msg.date")}: ${fmtDate(state.date)}`,
       `${tr("msg.time")}: ${fmtTime(state.time)}`,
       `${tr("msg.name")}: ${state.name}`,
@@ -407,7 +430,7 @@
 
   function manageMessage() {
     const s = service();
-    return tr("msg.manage", { ref: state.ref, service: nm(s), date: fmtDate(state.date), time: fmtTime(state.time) });
+    return tr("msg.manage", { ref: state.ref, service: svcLabel(), date: fmtDate(state.date), time: fmtTime(state.time) });
   }
 
   let confirming = false;
@@ -442,7 +465,7 @@
       state.ref = await db.createBooking({
         service: s.id, serviceName: s.name, price: s.price, currency: C.currency,
         date: state.date, time: state.time, name: state.name, phone: fullPhone(),
-        email: state.email || "", pay: state.pay
+        email: state.email || "", pay: state.pay, choices: pickedIds()
       });
       state.mode = "firebase";
       save();
@@ -504,7 +527,27 @@
   /* ---------- events ---------- */
   function bind() {
     $("serviceList").addEventListener("change", (e) => {
+      if (e.target.name === "pick") {
+        // Keep at most the allowed number: choosing one more drops the earliest choice.
+        const n = RS.pickCount(service());
+        let ids = chosen().filter((id) => id !== e.target.value);
+        if (e.target.checked) ids.push(e.target.value);
+        if (ids.length > n) ids = ids.slice(ids.length - n);
+        state.choices = ids;
+        const box = e.target.closest(".pick-box");
+        box.querySelectorAll('input[name="pick"]').forEach((i) => { i.checked = ids.includes(i.value); });
+        box.querySelector("[data-pick-count]").textContent = tr("pick.count", { k: ids.length, n });
+        save(); renderBindings();
+        return;
+      }
       if (e.target.name !== "service") return;
+      if (state.serviceId !== e.target.value) {
+        state.choices = [];
+        $("serviceList").querySelectorAll('input[name="pick"]').forEach((i) => { i.checked = false; });
+        $("serviceList").querySelectorAll("[data-pick-count]").forEach((el) => {
+          el.textContent = tr("pick.count", { k: 0, n: RS.pickCount(activeServices().find((s) => s.id === el.closest(".pick-box").dataset.pickFor)) });
+        });
+      }
       state.serviceId = e.target.value;
       save(); renderBindings();
     });
@@ -580,9 +623,10 @@
     // Coming from a "Book Cold Plunge" link: preselect it and go straight to date & time.
     const pre = new URLSearchParams(location.search).get("service");
     if (pre && activeServices().some((s) => s.id === pre) && !location.hash) {
-      if (state.serviceId !== pre) { state.serviceId = pre; state.date = null; state.time = null; }
+      if (state.serviceId !== pre) { state.serviceId = pre; state.date = null; state.time = null; state.choices = []; }
       save();
-      history.replaceState(null, "", "book.html#datetime");
+      // A "build your own" session still needs its choices: stay on the first step for those.
+      if (choicesOk()) history.replaceState(null, "", "book.html#datetime");
     }
     renderServices();
     renderPolicy();

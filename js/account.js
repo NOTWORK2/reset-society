@@ -18,7 +18,7 @@
   }
   const toUTC = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
   const fmtDate = (s) => new Intl.DateTimeFormat(L.locale, { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(toUTC(s));
-  const svcName = (b) => { const s = C.services.find((x) => x.id === b.service); return s ? L.field(s, "name") : (b.serviceName || b.service); };
+  const svcName = (b) => { const s = C.services.find((x) => x.id === b.service); return RS.withChoices(s ? L.field(s, "name") : (b.serviceName || b.service), b.choices); };
   const addDays = (s, n) => { const t = toUTC(s); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
   const slotMinutes = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
   function studioNow() {
